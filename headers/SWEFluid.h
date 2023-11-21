@@ -37,14 +37,12 @@ private:
     void Advect(std::vector<VertexData>& deplacement, const std::vector<VertexData>& source, float dt );
     void Update_height( float dt);
     void Update_velocities( float dt);
-    float Interpolate(const std::vector<VertexData>& source, float x, float y);
+    float InterpolateWaterH(const std::vector<VertexData>& source, float x, float y);
     QVector2D InterpolateVelocity(const std::vector<VertexData>& source, float x, float y) ;
     QOpenGLBuffer arrayBuf;
     QOpenGLBuffer indexBuf;
     std::vector<VertexData> vertices;
-    float gravity=9.81f;
-    float safetyFactor=1;// A value between 0.5 and 1 to ensure stability.
-
+    float gravity=-9.81f;
 };
 
 #endif // SWEFLUID_H

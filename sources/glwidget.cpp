@@ -132,7 +132,7 @@ void GLWidget::paintGL()
 
 void GLWidget::updateSimulation() {
 
-    swefluid->ShallowWaterStep(0.00015f);
+    swefluid->ShallowWaterStep(0.00001f);
     swefluid->updateVertexBuffer();
 
     update(); // Request to redraw the widget
@@ -210,7 +210,7 @@ void GLWidget::keyPressEvent(QKeyEvent *event) {
                 // Check if point is on the border of the circle
                 if (distanceSquared <= radius * radius && distanceSquared >= (radius - borderThickness) * (radius - borderThickness)) {
                     // Point is on the border, set the water height
-                    swefluid->setWaterHeightAt(x, y, 3);  // Set height to 10
+                    swefluid->setWaterHeightAt(x, y, 10);  // Set height to 10
                 }
             }
         }
