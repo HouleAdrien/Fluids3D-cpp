@@ -6,7 +6,8 @@
 #include <QOpenGLVertexArrayObject>
 #include <QOpenGLBuffer>
 #include <QMatrix4x4>
-#include "../headers/maillage.h"
+#include <QTimer>
+#include "../headers/SWEFluid.h"
 QT_FORWARD_DECLARE_CLASS(QOpenGLShaderProgram)
 
 class GLWidget : public QOpenGLWidget, protected QOpenGLFunctions
@@ -24,8 +25,10 @@ public:
     QSize sizeHint() const override;
     void setFoV(float fov);
 
+
 public slots:
     void cleanup();
+     void updateSimulation();
 
 protected:
     void initializeGL() override;
@@ -34,6 +37,8 @@ protected:
     void mousePressEvent(QMouseEvent *event) override;
     void mouseMoveEvent(QMouseEvent *event) override;
     void wheelEvent(QWheelEvent *event) override;
+    void keyPressEvent(QKeyEvent *event) override;
+
 private:
     void setupVertexAttribs();
     void updateProjectionMatrix();
@@ -50,7 +55,8 @@ private:
     QMatrix4x4 m_view;
     QMatrix4x4 m_model;
     static bool m_transparent;
-    Maillage *maillage = nullptr;
+    SWEFluid* swefluid = nullptr;
+    QTimer *simulationTimer;
 };
 
 #endif

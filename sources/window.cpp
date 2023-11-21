@@ -64,7 +64,7 @@ Window::Window(MainWindow *mw)
     : mainWindow(mw)
 {
     glWidget = new GLWidget;
-
+    setAttribute(Qt::WA_DeleteOnClose);
     QVBoxLayout *mainLayout = new QVBoxLayout;
     QHBoxLayout *container = new QHBoxLayout;
     container->addWidget(glWidget);
@@ -76,12 +76,6 @@ Window::Window(MainWindow *mw)
 
     setWindowTitle(tr("Qt OpenGL"));
 }
-
-
-void Window::keyPressEvent(QKeyEvent *e)
-{
-    if (e->key() == Qt::Key_Escape)
-        close();
-    else
-        QWidget::keyPressEvent(e);
+Window::~Window(){
+    delete glWidget;
 }

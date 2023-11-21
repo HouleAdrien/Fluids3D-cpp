@@ -1,4 +1,4 @@
-#include "../headers/glwidget.h"
+﻿#include "../headers/glwidget.h"
 #include <QMouseEvent>
 #include <QOpenGLShaderProgram>
 #include <QCoreApplication>
@@ -19,6 +19,7 @@ GLWidget::GLWidget(QWidget *parent)
         fmt.setAlphaBufferSize(8);
         setFormat(fmt);
     }
+      setFocusPolicy(Qt::StrongFocus);
 }
 
 GLWidget::~GLWidget()
@@ -42,7 +43,7 @@ void GLWidget::cleanup()
     if (m_program == nullptr)
         return;
     makeCurrent();
-    delete maillage;
+    delete swefluid;
     delete m_program;
     m_program = 0;
     doneCurrent();
@@ -86,52 +87,61 @@ void GLWidget::initializeGL()
     m_normal_matrix_loc = m_program->uniformLocation("normal_matrix");
     m_light_pos_loc = m_program->uniformLocation("light_position");
 
-    maillage = new Maillage;
+    swefluid=  new SWEFluid(100,100);
 
     // Our camera never changes in this example.
     m_view.setToIdentity();
-    m_view.translate(-5.11658, -1.17886, -12.3675);
+    m_view.translate(-50, 5, -60); // Reculer et élever la caméra
+    m_view.rotate(45/ 16.0f, 1, 0, 0);
 
     // Light position is fixed.
-    m_program->setUniformValue(m_light_pos_loc, QVector3D(0, 0, 70));
+    m_program->setUniformValue(m_light_pos_loc, QVector3D(50, 10, 50));
 
     m_program->release();
 
 
 }
-
 
 
 void GLWidget::paintGL()
 {
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
     glEnable(GL_DEPTH_TEST);
-   // glEnable(GL_CULL_FACE);
 
+    // Configuration de la matrice de transformation
     m_model.setToIdentity();
-    m_model.rotate( (180 / 16.0f), 1, 0, 0);
+    m_model.rotate(180 / 16.0f, 1, 0, 0);
     m_model.rotate(180 / 16.0f, 0, 1, 0);
     m_model.rotate(0 / 16.0f, 0, 0, 1);
 
     m_program->bind();
 
-    // Set modelview-projection matrix
+    // Mise à jour de la matrice MVP (Model-View-Projection)
     m_program->setUniformValue(m_mvp_matrix_loc, m_projection * m_view * m_model);
     QMatrix3x3 normal_matrix = m_model.normalMatrix();
-
-    // Set normal matrix
     m_program->setUniformValue(m_normal_matrix_loc, normal_matrix);
 
-    maillage->drawGridGeometry(m_program);
+    // Dessin de la grille
+    swefluid->drawGridGeometry(m_program);
 
     m_program->release();
+    updateSimulation();
+    update();
+
 }
 
-void GLWidget::resizeGL(int w, int h)
-{
-    if (h == 0) h = 1; // Prevent division by zero
+void GLWidget::updateSimulation() {
+
+    swefluid->ShallowWaterStep(0.00015f);
+    swefluid->updateVertexBuffer();
+
+    update(); // Request to redraw the widget
+}
+
+void GLWidget::resizeGL(int w, int h) {
+    if (h == 0) h = 1; // Prévenir la division par zéro
     m_projection.setToIdentity();
-    m_projection.perspective(m_currentFoV, float(w) / float(h),  0.000001f, 100000.0f);
+    m_projection.perspective(m_currentFoV, float(w) / float(h), 0.1f, 1000.0f);
 }
 
 void GLWidget::setFoV(float fov)
@@ -180,4 +190,32 @@ void GLWidget::mouseMoveEvent(QMouseEvent *event)
     }
     m_last_position = event->pos();
     update();
+}
+
+void GLWidget::keyPressEvent(QKeyEvent *event) {
+    if (event->key() == Qt::Key_T) {
+        int centerX = 50;
+        int centerY = 50;
+        int radius = 6 / 2;  // Diameter is 20, so radius is 10
+        int borderThickness = 1;  // Thickness of the border, adjust as needed
+
+        // Iterate over a square that bounds the circle
+        for (int x = centerX - radius; x <= centerX + radius; ++x) {
+            for (int y = centerY - radius; y <= centerY + radius; ++y) {
+                // Calculate distance from the center
+                int dx = x - centerX;
+                int dy = y - centerY;
+                int distanceSquared = dx * dx + dy * dy;
+
+                // Check if point is on the border of the circle
+                if (distanceSquared <= radius * radius && distanceSquared >= (radius - borderThickness) * (radius - borderThickness)) {
+                    // Point is on the border, set the water height
+                    swefluid->setWaterHeightAt(x, y, 3);  // Set height to 10
+                }
+            }
+        }
+
+        swefluid->updateVertexBuffer();
+        update();
+    }
 }
