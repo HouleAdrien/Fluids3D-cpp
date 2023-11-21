@@ -3,6 +3,64 @@
 #include <QOpenGLShaderProgram>
 #include <QCoreApplication>
 #include <math.h>
+#include <cstdlib>  // For rand() and srand()
+#include <ctime>    // For time()
+
+
+float skyboxVertices[] = {
+    // Positions
+    -500.0f,  500.0f, -500.0f,
+    -500.0f, -500.0f, -500.0f,
+    500.0f, -500.0f, -500.0f,
+    500.0f, -500.0f, -500.0f,
+    500.0f,  500.0f, -500.0f,
+    -500.0f,  500.0f, -500.0f,
+
+    -500.0f, -500.0f,  500.0f,
+    -500.0f, -500.0f, -500.0f,
+    -500.0f,  500.0f, -500.0f,
+    -500.0f,  500.0f, -500.0f,
+    -500.0f,  500.0f,  500.0f,
+    -500.0f, -500.0f,  500.0f,
+
+    500.0f, -500.0f, -500.0f,
+    500.0f, -500.0f,  500.0f,
+    500.0f,  500.0f,  500.0f,
+    500.0f,  500.0f,  500.0f,
+    500.0f,  500.0f, -500.0f,
+    500.0f, -500.0f, -500.0f,
+
+    -500.0f, -500.0f,  500.0f,
+    -500.0f,  500.0f,  500.0f,
+    500.0f,  500.0f,  500.0f,
+    500.0f,  500.0f,  500.0f,
+    500.0f, -500.0f,  500.0f,
+    -500.0f, -500.0f,  500.0f,
+
+    -500.0f,  500.0f, -500.0f,
+    500.0f,  500.0f, -500.0f,
+    500.0f,  500.0f,  500.0f,
+    500.0f,  500.0f,  500.0f,
+    -500.0f,  500.0f,  500.0f,
+    -500.0f,  500.0f, -500.0f,
+
+    -500.0f, -500.0f, -500.0f,
+    -500.0f, -500.0f,  500.0f,
+    500.0f, -500.0f, -500.0f,
+    500.0f, -500.0f, -500.0f,
+    -500.0f, -500.0f,  500.0f,
+    500.0f, -500.0f,  500.0f
+};
+
+
+// Initialize geometry for the sun (quad)
+float sunVertices[] = {
+    // positions
+    -0.5f, -0.5f, 0.0f,
+    0.5f, -0.5f, 0.0f,
+    0.5f,  0.5f, 0.0f,
+    -0.5f,  0.5f, 0.0f
+};
 
 bool GLWidget::m_transparent = false;
 
@@ -15,9 +73,12 @@ GLWidget::GLWidget(QWidget *parent)
     // --transparent causes the clear color to be transparent. Therefore, on systems that
     // support it, the widget will become transparent apart from the logo.
     if (m_transparent) {
-        QSurfaceFormat fmt = format();
-        fmt.setAlphaBufferSize(8);
-        setFormat(fmt);
+        QSurfaceFormat format;
+        format.setAlphaBufferSize(8);
+        format.setVersion(3, 3); // Set to OpenGL version 3.3
+        format.setProfile(QSurfaceFormat::CoreProfile); // Using Core profile
+        QSurfaceFormat::setDefaultFormat(format);
+
     }
       setFocusPolicy(Qt::StrongFocus);
 }
@@ -45,41 +106,35 @@ void GLWidget::cleanup()
     makeCurrent();
     delete swefluid;
     delete m_program;
+    delete m_skyboxProgram;
+    delete m_sunProgram;
+    m_skyboxProgram = 0;
+    m_sunProgram = 0;
     m_program = 0;
     doneCurrent();
 }
 
 void GLWidget::initializeGL()
 {
-    // In this example the widget's corresponding top-level window can change
-    // several times during the widget's lifetime. Whenever this happens, the
-    // QOpenGLWidget's associated context is destroyed and a new one is created.
-    // Therefore we have to be prepared to clean up the resources on the
-    // aboutToBeDestroyed() signal, instead of the destructor. The emission of
-    // the signal will be followed by an invocation of initializeGL() where we
-    // can recreate all resources.
     connect(context(), &QOpenGLContext::aboutToBeDestroyed, this, &GLWidget::cleanup);
 
     initializeOpenGLFunctions();
     glClearColor(0, 0, 0, m_transparent ? 0 : 1);
 
     m_program = new QOpenGLShaderProgram;
-    // Compile vertex shader
     if (!m_program->addShaderFromSourceFile(QOpenGLShader::Vertex, ":/vshader.glsl"))
         close();
-
-    // Compile fragment shader
     if (!m_program->addShaderFromSourceFile(QOpenGLShader::Fragment, ":/fshader.glsl"))
         close();
+
+    // Define the sun's position
+    QVector3D sunPosition = QVector3D(50, 100, 50);
 
     m_program->bindAttributeLocation("vertex", 0);
     m_program->bindAttributeLocation("normal", 1);
 
-    // Link shader pipeline
     if (!m_program->link())
         close();
-
-    // Bind shader pipeline for use
     if (!m_program->bind())
         close();
 
@@ -87,19 +142,47 @@ void GLWidget::initializeGL()
     m_normal_matrix_loc = m_program->uniformLocation("normal_matrix");
     m_light_pos_loc = m_program->uniformLocation("light_position");
 
-    swefluid=  new SWEFluid(100,100);
-
-    // Our camera never changes in this example.
-    m_view.setToIdentity();
-    m_view.translate(-50, 5, -60); // Reculer et élever la caméra
-    m_view.rotate(45/ 16.0f, 1, 0, 0);
-
-    // Light position is fixed.
-    m_program->setUniformValue(m_light_pos_loc, QVector3D(50, 10, 50));
+    // Set the light position to the sun's position
+    m_program->setUniformValue(m_light_pos_loc, sunPosition);
 
     m_program->release();
 
+    swefluid = new SWEFluid(100, 100);
 
+    m_view.setToIdentity();
+    m_view.translate(-50, 5, -60);
+    m_view.rotate(45 / 16.0f, 1, 0, 0);
+
+    // Skybox Shader Program
+    m_skyboxProgram = new QOpenGLShaderProgram;
+    m_skyboxProgram->addShaderFromSourceFile(QOpenGLShader::Vertex, ":/skybox_vshader.glsl");
+    m_skyboxProgram->addShaderFromSourceFile(QOpenGLShader::Fragment, ":/skybox_fshader.glsl");
+    m_skyboxProgram->link();
+
+    // Sun Shader Program
+    m_sunProgram = new QOpenGLShaderProgram;
+    m_sunProgram->addShaderFromSourceFile(QOpenGLShader::Vertex, ":/sun_vshader.glsl");
+    m_sunProgram->addShaderFromSourceFile(QOpenGLShader::Fragment, ":/sun_fshader.glsl");
+    m_sunProgram->link();
+
+    // Sun geometry setup
+    sunVAO.create();
+    sunVAO.bind();
+    sunVBO.create();
+    sunVBO.bind();
+    sunVBO.allocate(sunVertices, sizeof(sunVertices));
+    // Setup vertex attribute pointers for sun
+    sunVAO.release();
+
+    // Skybox geometry setup
+    skyboxVAO.create();
+    skyboxVAO.bind();
+    skyboxVBO.create();
+    skyboxVBO.bind();
+    skyboxVBO.allocate(skyboxVertices, sizeof(skyboxVertices));
+    glEnableVertexAttribArray(0);
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void*)0);
+    skyboxVAO.release();
 }
 
 
@@ -126,13 +209,40 @@ void GLWidget::paintGL()
 
     m_program->release();
     updateSimulation();
+
+    // Render Skybox
+    m_skyboxProgram->bind();
+    skyboxVAO.bind();
+    QMatrix4x4 viewMatrixNoTranslation = m_view;
+    viewMatrixNoTranslation.setColumn(3, QVector4D(0, 0, 0, 1));
+    QMatrix4x4 mvpMatrixSkybox = m_projection * viewMatrixNoTranslation;
+    m_skyboxProgram->setUniformValue("mvp_matrix", mvpMatrixSkybox);
+    glDrawArrays(GL_TRIANGLES, 0, sizeof(skyboxVertices) / (3 * sizeof(float))); // Using the size of skyboxVertices array
+    skyboxVAO.release();
+    m_skyboxProgram->release();
+
+    // Render Sun
+    m_sunProgram->bind();
+    sunVAO.bind();
+    QMatrix4x4 modelMatrixSun;
+    modelMatrixSun.translate(50, 10, 50);
+    modelMatrixSun.scale(5);
+    QMatrix4x4 mvpMatrixSun = m_projection * m_view * modelMatrixSun;
+    m_sunProgram->setUniformValue("mvp_matrix", mvpMatrixSun);
+    QVector3D sunColor(1.0, 1.0, 0.8); // Soft yellow-white
+    m_sunProgram->setUniformValue("lightColor", sunColor);
+    glDrawArrays(GL_TRIANGLES, 0, sizeof(sunVertices) / (3 * sizeof(float))); // Using the size of sunVertices array
+    sunVAO.release();
+    m_sunProgram->release();
+
+
     update();
 
 }
 
 void GLWidget::updateSimulation() {
 
-    swefluid->ShallowWaterStep(0.00001f);
+    swefluid->ShallowWaterStep(0.0001f);
     swefluid->updateVertexBuffer();
 
     update(); // Request to redraw the widget
@@ -194,23 +304,30 @@ void GLWidget::mouseMoveEvent(QMouseEvent *event)
 
 void GLWidget::keyPressEvent(QKeyEvent *event) {
     if (event->key() == Qt::Key_T) {
-        int centerX = 50;
-        int centerY = 50;
-        int radius = 6 / 2;  // Diameter is 20, so radius is 10
+        srand(time(NULL));  // Seed the random number generator
+
+        int numberOfCircles = 5;  // Specify the number of circles you want
         int borderThickness = 1;  // Thickness of the border, adjust as needed
 
-        // Iterate over a square that bounds the circle
-        for (int x = centerX - radius; x <= centerX + radius; ++x) {
-            for (int y = centerY - radius; y <= centerY + radius; ++y) {
-                // Calculate distance from the center
-                int dx = x - centerX;
-                int dy = y - centerY;
-                int distanceSquared = dx * dx + dy * dy;
+        for (int i = 0; i < numberOfCircles; ++i) {
+            int centerX = rand() % 100;  // Random x-coordinate between 0 and 99
+            int centerY = rand() % 100;  // Random y-coordinate between 0 and 99
+            int diameter = rand() % 20 + 5;  // Random diameter between 5 and 24
+            int radius = diameter / 2;
 
-                // Check if point is on the border of the circle
-                if (distanceSquared <= radius * radius && distanceSquared >= (radius - borderThickness) * (radius - borderThickness)) {
-                    // Point is on the border, set the water height
-                    swefluid->setWaterHeightAt(x, y, 10);  // Set height to 10
+            // Iterate over a square that bounds the circle
+            for (int x = centerX - radius; x <= centerX + radius; ++x) {
+                for (int y = centerY - radius; y <= centerY + radius; ++y) {
+                    // Calculate distance from the center
+                    int dx = x - centerX;
+                    int dy = y - centerY;
+                    int distanceSquared = dx * dx + dy * dy;
+
+                    // Check if point is on the border of the circle
+                    if (distanceSquared <= radius * radius && distanceSquared >= (radius - borderThickness) * (radius - borderThickness)) {
+                        // Point is on the border, set the water height
+                        swefluid->setWaterHeightAt(x, y, 10);  // Set height to 10
+                    }
                 }
             }
         }

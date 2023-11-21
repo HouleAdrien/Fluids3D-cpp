@@ -13,4 +13,7 @@ RESOURCES += \
 QT += widgets
 QT += core gui opengl openglwidgets
 
+DISTFILES += \
+    skybox.frag
+
 

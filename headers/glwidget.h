@@ -48,6 +48,9 @@ private:
     bool m_core;
     QPoint m_last_position;
     QOpenGLShaderProgram *m_program;
+    QOpenGLShaderProgram* m_skyboxProgram;
+    QOpenGLShaderProgram* m_sunProgram;
+
     int m_mvp_matrix_loc;
     int m_normal_matrix_loc;
     int m_light_pos_loc;
@@ -57,6 +60,14 @@ private:
     static bool m_transparent;
     SWEFluid* swefluid = nullptr;
     QTimer *simulationTimer;
+
+    QOpenGLVertexArrayObject sunVAO;
+    QOpenGLBuffer sunVBO;
+
+    QOpenGLVertexArrayObject skyboxVAO;
+    QOpenGLBuffer skyboxVBO;
+
+      QVector3D sunPosition;
 };
 
 #endif

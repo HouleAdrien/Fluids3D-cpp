@@ -8,8 +8,8 @@ SWEFluid::SWEFluid(int _gridWidth, int _gridDepth) : indexBuf(QOpenGLBuffer::Ind
     initializeOpenGLFunctions();
     gridDepth = _gridDepth;
     gridWidth = _gridWidth;
-    Dx = 1.0f / (_gridWidth - 1);
-    Dy = 1.0f / (_gridDepth - 1);
+    Dx =  _gridWidth;
+    Dy = _gridDepth;
 
     arrayBuf.create();
     indexBuf.create();
@@ -172,8 +172,8 @@ void SWEFluid::Update_height(float dt) {
 
             // Je fais valeur a gauche et a droite car meilleur résulat mais ça pourrait être valeur +1 et actuel
 
-            float dVx = (vertices[j * gridWidth + (i + 1)].velocity.x() - vertices[j * gridWidth + (i -1)].velocity.x()) / (2 /* *Dx */);
-            float dVz = (vertices[(j + 1) * gridWidth + i].velocity.y() - vertices[(j - 1) * gridWidth + i].velocity.y()) / (2 /* *Dy */);
+            float dVx = (vertices[j * gridWidth + (i + 1)].velocity.x() - vertices[j * gridWidth + (i -1)].velocity.x()) / (2  /* * Dx */);
+            float dVz = (vertices[(j + 1) * gridWidth + i].velocity.y() - vertices[(j - 1) * gridWidth + i].velocity.y()) / (2 /*  * Dy */);
 
             div = dt * (dVx + dVz);
 
@@ -199,8 +199,8 @@ void SWEFluid::Update_velocities(float dt) {
             int up = (j == gridDepth - 1) ? gridDepth - 2 : j + 1;
 
             // Calculate gradients with reflective boundaries
-            float xGrad = (vertices[j * gridWidth + right].waterHeight - vertices[j * gridWidth + left].waterHeight) / (2  /* * Dx */);
-            float zGrad = (vertices[up * gridWidth + i].waterHeight - vertices[down * gridWidth + i].waterHeight) / (2 /* * Dy */ );
+            float xGrad = (vertices[j * gridWidth + right].waterHeight - vertices[j * gridWidth + left].waterHeight) / (2 /* * Dx */);
+            float zGrad = (vertices[up * gridWidth + i].waterHeight - vertices[down * gridWidth + i].waterHeight) / (2 /*  * Dy */ );
 
             // Update velocities
             vertex.velocity.setX(vertex.velocity.x() + (gravity * xGrad));
