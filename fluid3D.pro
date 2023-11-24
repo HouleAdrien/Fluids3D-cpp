@@ -10,7 +10,6 @@ SOURCES = main.cpp \
 RESOURCES += \
     shaders.qrc
 
-# Conditional inclusion for different Qt versions
 greaterThan(QT_MAJOR_VERSION, 5) {
     QT += core gui opengl openglwidgets
 } else {

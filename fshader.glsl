@@ -18,9 +18,9 @@ void main() {
     vec3 shallowWaterColor = vec3(0.0, 0.5, 1.0);
     vec3 colorGradient = mix(deepWaterColor, shallowWaterColor, heightFactor);
 
-    vec3 col = clamp(colorGradient * 0.2 + colorGradient * 0.8 * NL, 0.0, 1.0);
+    vec3 col = clamp(colorGradient * 0.2 + colorGradient * 2 * NL, 0.0, 1.0);
 
     // Adjusted alpha for transparency
-    float alpha = mix(0.8, 0.95, heightFactor); // More transparent in deep water
+    float alpha = mix(0.6, 0.8, heightFactor); // More transparent in deep water
     fragColor = vec4(col, alpha);
 }

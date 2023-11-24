@@ -12,14 +12,12 @@ uniform mat4 mvp_matrix;     // Model-View-Projection matrix
 uniform mat3 normal_matrix;  // Normal matrix for transforming normals
 
 void main() {
-    // Apply the wave motion to the vertex position
-    vec3 displacedPosition = vertex.xyz + normal * waterHeight;
-
-    // Compute the transformed position using the MVP matrix
-    gl_Position = mvp_matrix * vec4(displacedPosition, 1.0);
 
     // Pass the displaced position to the fragment shader
-    v_position = displacedPosition;
+    v_position = vertex.xyz ;
+
+    // Compute the transformed position using the MVP matrix
+    gl_Position = mvp_matrix * vec4(v_position, 1.0);
 
     // Calculate the new normal after applying the wave motion
     // Here we're just passing the original normal, but you can modify this
