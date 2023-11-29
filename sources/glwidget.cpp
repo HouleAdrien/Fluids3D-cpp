@@ -178,7 +178,7 @@ void GLWidget::initializeGL()
 
     grid_program->release();
 
-    grid = new GridGeometry(100,100);
+    grid = new GridGeometry();
 
     swefluid = new SWEFluid(100, 100);
 

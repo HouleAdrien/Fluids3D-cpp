@@ -1,0 +1,5 @@
+<RCC>
+    <qresource prefix="/">
+        <file>Images/iceland_heightmap.png</file>
+    </qresource>
+</RCC>

@@ -8,6 +8,7 @@ SOURCES = main.cpp \
           $$files(sources/*.cpp)
 
 RESOURCES += \
+    Images.qrc \
     shaders.qrc
 
 greaterThan(QT_MAJOR_VERSION, 5) {
