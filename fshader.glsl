@@ -2,6 +2,7 @@
 in vec3 v_position;
 in vec3 v_normal;
 in float f_waterHeight;
+in float f_groundHeight;
 
 out vec4 fragColor;
 

@@ -178,9 +178,9 @@ void GLWidget::initializeGL()
 
     grid_program->release();
 
-    grid = new GridGeometry();
+    grid = new GridGeometry(200,200);
 
-    swefluid = new SWEFluid(100, 100);
+    swefluid = new SWEFluid(200, 200);
 
     m_view.setToIdentity();
     m_view.translate(-50, 5, -60);

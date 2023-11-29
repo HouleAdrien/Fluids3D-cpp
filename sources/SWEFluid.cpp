@@ -28,12 +28,12 @@ void SWEFluid::initGridGeometry() {
     for (int x = 0; x < gridWidth; ++x) {
         for (int z = 0; z < gridDepth; ++z) {
             VertexData vertex;
-            vertex.position = QVector3D(x, 20.0f, z);
+            vertex.position = QVector3D(x, 0.0f, z);
             vertex.normal = normal;
             vertex.waterHeight = 0;
             vertex.velocity = QVector2D(0, 0); // 2D velocity (vx, vz)
-            vertex.groundHeight = 20;
-            vertex.fluidHeight = 20;
+            vertex.groundHeight = 0;
+            vertex.fluidHeight = 0;
 
             vertices.push_back(vertex);
         }

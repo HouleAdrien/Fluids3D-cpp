@@ -17,6 +17,7 @@ struct VertexData {
     QVector2D velocity; // 2D velocity vector (vx, vz)
     float groundHeight; // Height of the ground
     float fluidHeight;  // Height of the fluid
+    bool isFluid;
 };
 
 class SWEFluid : protected QOpenGLFunctions {

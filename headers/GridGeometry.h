@@ -4,6 +4,7 @@
 #include <QOpenGLShaderProgram>
 #include <QOpenGLBuffer>
 #include <QImage>
+#include <QOpenGLTexture>
 
 struct GridVertexData {
     QVector3D position; // Position of the vertex
@@ -14,7 +15,7 @@ struct GridVertexData {
 class GridGeometry : protected QOpenGLFunctions
 {
 public:
-    GridGeometry();
+    GridGeometry(int _gridWidth,int _gridDepth);
     ~GridGeometry();
 
     void initGridGeometry();
@@ -23,9 +24,11 @@ public:
 private:
     QOpenGLBuffer arrayBuf;
     QOpenGLBuffer indexBuf;
-    int gridWidth = 0, gridDepth = 0;
-    unsigned char *data;
-    QImage image;
+    int gridWidth , gridDepth ;
+    void setHeightMap(const QImage& image);
+    QOpenGLTexture* heightMapTexture;
+    float maxHeight = 30;
+
 };
 
 #endif // GRIDGEOMETRY_H
