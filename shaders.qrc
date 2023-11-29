@@ -6,5 +6,7 @@
         <file>sun_fshader.glsl</file>
         <file>skybox_vshader.glsl</file>
         <file>skybox_fshader.glsl</file>
+        <file>grid_vshader.glsl</file>
+        <file>grid_fshader.glsl</file>
     </qresource>
 </RCC>

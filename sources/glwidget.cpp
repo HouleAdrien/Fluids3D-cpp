@@ -67,7 +67,11 @@ bool GLWidget::m_transparent = false;
 GLWidget::GLWidget(QWidget *parent)
     : QOpenGLWidget(parent),
     m_currentFoV(60.0f),
-    m_program(0)
+    m_program(0),
+    m_skyboxProgram(0),
+    m_sunProgram(0),
+    grid_program(0)
+
 {
     m_core = QSurfaceFormat::defaultFormat().profile() == QSurfaceFormat::CoreProfile;
     // --transparent causes the clear color to be transparent. Therefore, on systems that
@@ -101,16 +105,16 @@ QSize GLWidget::sizeHint() const
 
 void GLWidget::cleanup()
 {
-    if (m_program == nullptr)
-        return;
     makeCurrent();
     delete swefluid;
     delete m_program;
+    delete grid_program;
     delete m_skyboxProgram;
     delete m_sunProgram;
     m_skyboxProgram = 0;
     m_sunProgram = 0;
     m_program = 0;
+    grid_program = 0;
     doneCurrent();
 }
 
@@ -121,6 +125,7 @@ void GLWidget::initializeGL()
     initializeOpenGLFunctions();
     glClearColor(0, 0, 0, m_transparent ? 0 : 1);
 
+    //FLUID
     m_program = new QOpenGLShaderProgram;
     if (!m_program->addShaderFromSourceFile(QOpenGLShader::Vertex, ":/vshader.glsl"))
         close();
@@ -130,8 +135,8 @@ void GLWidget::initializeGL()
     // Define the sun's position
     QVector3D sunPosition = QVector3D(50, 100, 50);
 
-    m_program->bindAttributeLocation("vertex", 0);
-    m_program->bindAttributeLocation("normal", 1);
+    m_program->bindAttributeLocation("fluid_vertex", 0);
+    m_program->bindAttributeLocation("fluid_normal", 1);
 
     if (!m_program->link())
         close();
@@ -146,6 +151,34 @@ void GLWidget::initializeGL()
     m_program->setUniformValue(m_light_pos_loc, sunPosition);
 
     m_program->release();
+
+
+
+    //TEST GRID
+    grid_program = new QOpenGLShaderProgram;
+    if (!grid_program->addShaderFromSourceFile(QOpenGLShader::Vertex, ":/grid_vshader.glsl"))
+        close();
+    if (!grid_program->addShaderFromSourceFile(QOpenGLShader::Fragment, ":/grid_fshader.glsl"))
+        close();
+
+    grid_program->bindAttributeLocation("vertex", 0);
+    grid_program->bindAttributeLocation("normal", 1);
+
+    if (!grid_program->link())
+        close();
+    if (!grid_program->bind())
+        close();
+
+    grid_mvp_matrix_loc = grid_program->uniformLocation("mvp_matrix");
+    grid_normal_matrix_loc = grid_program->uniformLocation("normal_matrix");
+    grid_light_pos_loc = grid_program->uniformLocation("light_position");
+
+    // Set the light position to the sun's position
+    grid_program->setUniformValue(grid_light_pos_loc, sunPosition);
+
+    grid_program->release();
+
+    grid = new GridGeometry(100,100);
 
     swefluid = new SWEFluid(100, 100);
 
@@ -210,7 +243,27 @@ void GLWidget::paintGL()
     swefluid->drawGridGeometry(m_program);
 
     m_program->release();
+    
     updateSimulation();
+
+
+
+
+    //render grid
+
+    grid_program->bind();
+
+    grid_program->setUniformValue(grid_mvp_matrix_loc, m_projection * m_view * m_model);
+    QMatrix3x3 grid_normal_matrix = m_model.normalMatrix();
+    grid_program->setUniformValue(grid_normal_matrix_loc, grid_normal_matrix);
+
+    // Dessin de la grille
+    grid->drawGridGeometry(grid_program);
+
+    grid_program->release();
+
+
+
 
     // Render Skybox
     m_skyboxProgram->bind();
@@ -306,28 +359,23 @@ void GLWidget::mouseMoveEvent(QMouseEvent *event)
 
 void GLWidget::keyPressEvent(QKeyEvent *event) {
     if (event->key() == Qt::Key_T) {
-        srand(time(NULL));  // Seed the random number generator
+        srand(time(NULL));
 
-        int numberOfCircles = 5;  // Specify the number of circles you want
-        int borderThickness = 1;  // Thickness of the border, adjust as needed
+        int numberOfCircles = 5;
+        int borderThickness = 1;
 
         for (int i = 0; i < numberOfCircles; ++i) {
-            int centerX = rand() % 100;  // Random x-coordinate between 0 and 99
-            int centerY = rand() % 100;  // Random y-coordinate between 0 and 99
-            int diameter = rand() % 20 + 5;  // Random diameter between 5 and 24
+            int centerX = rand() % 80+20;
+            int centerY = rand() % 80+20;
+            int diameter = 10;
             int radius = diameter / 2;
 
-            // Iterate over a square that bounds the circle
             for (int x = centerX - radius; x <= centerX + radius; ++x) {
                 for (int y = centerY - radius; y <= centerY + radius; ++y) {
-                    // Calculate distance from the center
                     int dx = x - centerX;
                     int dy = y - centerY;
                     int distanceSquared = dx * dx + dy * dy;
-
-                    // Check if point is on the border of the circle
                     if (distanceSquared <= radius * radius && distanceSquared >= (radius - borderThickness) * (radius - borderThickness)) {
-                        // Point is on the border, set the water height
                         swefluid->setWaterHeightAt(x, y, 10);  // Set height to 10
                     }
                 }

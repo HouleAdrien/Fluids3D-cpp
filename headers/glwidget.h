@@ -8,6 +8,8 @@
 #include <QMatrix4x4>
 #include <QTimer>
 #include "../headers/SWEFluid.h"
+#include "../headers/GridGeometry.h"
+
 QT_FORWARD_DECLARE_CLASS(QOpenGLShaderProgram)
 
 class GLWidget : public QOpenGLWidget, protected QOpenGLFunctions
@@ -50,16 +52,24 @@ private:
     QOpenGLShaderProgram *m_program;
     QOpenGLShaderProgram* m_skyboxProgram;
     QOpenGLShaderProgram* m_sunProgram;
+    QOpenGLShaderProgram* grid_program;
 
     int m_mvp_matrix_loc;
     int m_normal_matrix_loc;
     int m_light_pos_loc;
+
+
+    int grid_mvp_matrix_loc;
+    int grid_normal_matrix_loc;
+    int grid_light_pos_loc;
+
     QMatrix4x4 m_projection;
     QMatrix4x4 m_view;
     QMatrix4x4 m_model;
     static bool m_transparent;
+
     SWEFluid* swefluid = nullptr;
-    QTimer *simulationTimer;
+    GridGeometry* grid = nullptr;
 
     QOpenGLVertexArrayObject sunVAO;
     QOpenGLBuffer sunVBO;
@@ -67,7 +77,7 @@ private:
     QOpenGLVertexArrayObject skyboxVAO;
     QOpenGLBuffer skyboxVBO;
 
-      QVector3D sunPosition;
+    QVector3D sunPosition;
 };
 
 #endif
