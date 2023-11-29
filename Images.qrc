@@ -3,5 +3,10 @@
         <file>Images/iceland_heightmap.png</file>
         <file>Images/31.png</file>
         <file>Images/Untitled.jpeg</file>
+        <file>Images/heightmap.png</file>
+        <file>Images/grass.jpg</file>
+        <file>Images/rock.png</file>
+        <file>Images/rockGrass.jpeg</file>
+        <file>Images/snow.jpg</file>
     </qresource>
 </RCC>
