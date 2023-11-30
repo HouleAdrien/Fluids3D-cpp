@@ -3,58 +3,38 @@
 // Include the following line to declare the texture function
 #extension GL_ARB_texture_query_lod : enable
 
+// Inputs from the vertex shader
 in vec3 v_position;
 in vec3 v_normal;
-in float v_height; // Receive the height from the vertex shader
+in vec2 Tex;
 
 out vec4 fragColor;
 
+// Uniforms
 uniform vec3 light_position;
+uniform float maxHeight;
 
-// Code from the first shader (with #version 330)
-// Comment out explicit location since it might not be supported
-// layout(location = 0) out vec4 FragColor;
-
-in vec4 Color;
-in vec2 Tex;
-in vec3 WorldPos;
-
+uniform sampler2D heightMap;
 uniform sampler2D gTextureHeight0;
 uniform sampler2D gTextureHeight1;
 uniform sampler2D gTextureHeight2;
 uniform sampler2D gTextureHeight3;
 
-uniform float gHeight0 = 64.0;
-uniform float gHeight1 = 128.0;
-uniform float gHeight2 = 193.0;
-uniform float gHeight3 = 256.0;
-
-vec4 CalcTexColor()
-{
+vec4 CalcTexColor() {
     vec4 TexColor;
+    float Height = texture2D(heightMap, Tex).r * maxHeight; // Sample the heightmap
 
-    float Height = WorldPos.y;
+    // Define thresholds as percentages of maxHeight
+    float heightThreshold1 = maxHeight * 0.05;
+    float heightThreshold2 = maxHeight * 0.15;
+    float heightThreshold3 = maxHeight * 0.45;
 
-    if (Height < gHeight0) {
+    if (Height < heightThreshold1) {
         TexColor = texture2D(gTextureHeight0, Tex);
-    } else if (Height < gHeight1) {
-        vec4 Color0 = texture2D(gTextureHeight0, Tex);
-        vec4 Color1 = texture2D(gTextureHeight1, Tex);
-        float Delta = gHeight1 - gHeight0;
-        float Factor = (Height - gHeight0) / Delta;
-        TexColor = mix(Color0, Color1, Factor);
-    } else if (Height < gHeight2) {
-        vec4 Color0 = texture2D(gTextureHeight1, Tex);
-        vec4 Color1 = texture2D(gTextureHeight2, Tex);
-        float Delta = gHeight2 - gHeight1;
-        float Factor = (Height - gHeight1) / Delta;
-        TexColor = mix(Color0, Color1, Factor);
-    } else if (Height < gHeight3) {
-        vec4 Color0 = texture2D(gTextureHeight2, Tex);
-        vec4 Color1 = texture2D(gTextureHeight3, Tex);
-        float Delta = gHeight3 - gHeight2;
-        float Factor = (Height - gHeight2) / Delta;
-        TexColor = mix(Color0, Color1, Factor);
+    } else if (Height < heightThreshold2) {
+        TexColor = mix(texture2D(gTextureHeight0, Tex), texture2D(gTextureHeight1, Tex), (Height - heightThreshold1) / (heightThreshold2 - heightThreshold1));
+    } else if (Height < heightThreshold3) {
+        TexColor = mix(texture2D(gTextureHeight1, Tex), texture2D(gTextureHeight2, Tex), (Height - heightThreshold2) / (heightThreshold3 - heightThreshold2));
     } else {
         TexColor = texture2D(gTextureHeight3, Tex);
     }
@@ -62,26 +42,12 @@ vec4 CalcTexColor()
     return TexColor;
 }
 
-void main()
-{
+
+void main() {
     vec4 TexColor = CalcTexColor();
 
-    // Use fragColor instead of FragColor
-    fragColor = Color * TexColor;
-
-    // Mountain gradient color calculation
-    vec3 baseColor = vec3(0.0, 0.5, 0.0); // Greenish color for base
-    vec3 peakColor = vec3(1.0, 1.0, 1.0); // Whitish color for peak
-    float t = clamp(v_height, 0.0, 1.0); // Ensure height is between 0 and 1
-    vec3 mountainColor = mix(baseColor, peakColor, t); // Interpolate between base and peak colors based on height
-
-    // Lighting calculations
-    vec3 L = normalize(light_position - v_position);
-    float NL = max(dot(normalize(v_normal), L), 0.0);
-
-    // Combine mountain gradient color with lighting effect
-    vec3 litColor = mountainColor * NL; // Modulate the mountain color with the lighting
-
-    // Assign to fragColor
-    fragColor = vec4(litColor, 1.0);
+    vec3 L = normalize(light_position - v_position); // Direction to the light
+    float NL = max(dot(normalize(v_normal), L), 0.0); // Diffuse lighting factor
+    vec3 litColor = TexColor.rgb * NL;
+    fragColor = vec4(litColor, 1);
 }

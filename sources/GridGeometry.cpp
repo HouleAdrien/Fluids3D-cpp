@@ -14,7 +14,7 @@ GridGeometry::GridGeometry(int _gridWidth,int _gridDepth) : indexBuf(QOpenGLBuff
     QImage _image(":/Images/Untitled.jpeg");
     
     if(_image.isNull()){
-        qWarning() << "No image found.";
+        qWarning() << "No image found for gradient.";
     }else{
         setHeightMap(_image);
     }
@@ -23,7 +23,7 @@ GridGeometry::GridGeometry(int _gridWidth,int _gridDepth) : indexBuf(QOpenGLBuff
     arrayBuf.create();
     indexBuf.create();
 
-        setTextureHeightMapsFromPaths(":/Images/grass.jpg", ":/Images/rockGrass.jpeg", ":/Images/rock.png", ":/Images/snow.jpg");
+    setTextureHeightMapsFromPaths(":/Images/grass.jpg", ":/Images/rockGrass.jpeg", ":/Images/rock.png", ":/Images/snow.jpg");
 
 
     initGridGeometry();
@@ -48,33 +48,11 @@ void GridGeometry::setHeightMap(const QImage& image) {
 void GridGeometry::setTextureHeightMaps(const QImage& image0, const QImage& image1, const QImage& image2, const QImage& image3) {
     // Assuming gTextureHeight0, gTextureHeight1, gTextureHeight2, and gTextureHeight3 are QOpenGLTexture pointers in your class
 
-    if (!image0.isNull()) {
-        if (gTextureHeight0) {
-            delete gTextureHeight0;
-        }
         gTextureHeight0 = new QOpenGLTexture(image0);
-    }
-
-    if (!image1.isNull()) {
-        if (gTextureHeight1) {
-            delete gTextureHeight1;
-        }
         gTextureHeight1 = new QOpenGLTexture(image1);
-    }
-
-    if (!image2.isNull()) {
-        if (gTextureHeight2) {
-            delete gTextureHeight2;
-        }
         gTextureHeight2 = new QOpenGLTexture(image2);
-    }
-
-    if (!image3.isNull()) {
-        if (gTextureHeight3) {
-            delete gTextureHeight3;
-        }
         gTextureHeight3 = new QOpenGLTexture(image3);
-    }
+
 }
 
 void GridGeometry::setTextureHeightMapsFromPaths(const QString& path0, const QString& path1, const QString& path2, const QString& path3) {
@@ -82,6 +60,23 @@ void GridGeometry::setTextureHeightMapsFromPaths(const QString& path0, const QSt
     QImage image1(path1);
     QImage image2(path2);
     QImage image3(path3);
+
+   if(image0.isNull() ){
+        qWarning() << "No image found for rockGrass.";
+        return;
+    }
+   if(image1.isNull() ){
+        qWarning() << "No image found for grass.";
+        return;
+   }
+   if(image2.isNull() ){
+        qWarning() << "No image found for rock.";
+        return;
+   }
+   if(image3.isNull() ){
+        qWarning() << "No image found for snow.";
+        return;
+   }
 
     setTextureHeightMaps(image0, image1, image2, image3);
 }
@@ -143,32 +138,30 @@ void GridGeometry::drawGridGeometry(QOpenGLShaderProgram* program) {
     int texcoordLocation = program->attributeLocation("texCoord");
     program->enableAttributeArray(texcoordLocation);
     program->setAttributeBuffer(texcoordLocation, GL_FLOAT, offset, 2, sizeof(GridVertexData));
+    auto checkGLError = [this](const char* action) {
+        GLenum err = glGetError();
+        if (err != GL_NO_ERROR) {
+            qWarning() << "OpenGL error after" << action << ":" << err;
+        }
+    };
 
-    if (heightMapTexture) {
-        heightMapTexture->bind();
-        program->setUniformValue("heightMap", 0); // Assuming the texture is bound to GL_TEXTURE0
-        program->setUniformValue("maxHeight", maxHeight);
-    }
+    // Texture binding and checking
+    auto bindTextureWithCheck = [&](QOpenGLTexture* texture, GLenum textureUnit, const char* uniformName, int unitIndex) {
+        if (texture) {
+            glActiveTexture(textureUnit);
+            texture->bind();
+            program->setUniformValue(uniformName, unitIndex);
+            checkGLError(uniformName);
+        }
+    };
 
-    if (gTextureHeight0) {
-        gTextureHeight0->bind();
-        program->setUniformValue("gTextureHeight0", 1); // Assuming the texture is bound to GL_TEXTURE1
-    }
+    bindTextureWithCheck(heightMapTexture, GL_TEXTURE0, "heightMap", 0);
+    program->setUniformValue("maxHeight", maxHeight);
 
-    if (gTextureHeight1) {
-        gTextureHeight1->bind();
-        program->setUniformValue("gTextureHeight1", 2); // Assuming the texture is bound to GL_TEXTURE2
-    }
-
-    if (gTextureHeight2) {
-        gTextureHeight2->bind();
-        program->setUniformValue("gTextureHeight2", 3); // Assuming the texture is bound to GL_TEXTURE3
-    }
-
-    if (gTextureHeight3) {
-        gTextureHeight3->bind();
-        program->setUniformValue("gTextureHeight3", 4); // Assuming the texture is bound to GL_TEXTURE4
-    }
+    bindTextureWithCheck(gTextureHeight0, GL_TEXTURE1, "gTextureHeight0", 1);
+    bindTextureWithCheck(gTextureHeight1, GL_TEXTURE2, "gTextureHeight1", 2);
+    bindTextureWithCheck(gTextureHeight2, GL_TEXTURE3, "gTextureHeight2", 3);
+    bindTextureWithCheck(gTextureHeight3, GL_TEXTURE4, "gTextureHeight3", 4);
 
     glDrawElements(GL_TRIANGLE_STRIP, indexBuf.size() / sizeof(GLushort), GL_UNSIGNED_SHORT, nullptr);
 

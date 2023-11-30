@@ -121,6 +121,8 @@ void SWEFluid::drawGridGeometry(QOpenGLShaderProgram* program) {
     indexBuf.release();
 }
 
+
+
 void SWEFluid::ShallowWaterStep(float dt) {
     std::vector<VertexData> tempVertices = vertices;
 
