@@ -23,6 +23,7 @@ public:
 
     void setTextureHeightMaps(const QImage& image0, const QImage& image1, const QImage& image2, const QImage& image3);
     void setTextureHeightMapsFromPaths(const QString& path0, const QString& path1, const QString& path2, const QString& path3);
+    void setHeightMap(const QImage& image);
     
 
 
@@ -30,7 +31,7 @@ private:
     QOpenGLBuffer arrayBuf;
     QOpenGLBuffer indexBuf;
     int gridWidth , gridDepth ;
-    void setHeightMap(const QImage& image);
+
     QOpenGLTexture* heightMapTexture;
     float maxHeight = 30;
 

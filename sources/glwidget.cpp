@@ -383,6 +383,31 @@ void GLWidget::keyPressEvent(QKeyEvent *event) {
         }
 
         swefluid->updateVertexBuffer();
-        update();
+//        update();
     }
+
+
+    const float cameraSpeed = 1.0f;
+
+    switch (event->key()) {
+    case Qt::Key_Up:
+        m_view.translate(0.0f, 0.0f, cameraSpeed);
+        break;
+    case Qt::Key_Down:
+        m_view.translate(0.0f, 0.0f, -cameraSpeed);
+        break;
+    case Qt::Key_Right:
+        m_view.translate(-cameraSpeed, 0.0f, 0.0f);
+        break;
+    case Qt::Key_Left:
+        m_view.translate(cameraSpeed, 0.0f, 0.0f);
+        break;
+    default:
+        break;
+    }
+
+    update();
+
+
+
 }

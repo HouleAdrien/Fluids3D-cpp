@@ -19,7 +19,7 @@ class GLWidget : public QOpenGLWidget, protected QOpenGLFunctions
 public:
     GLWidget(QWidget *parent = 0);
     ~GLWidget();
-
+    GridGeometry* grid = nullptr;
     static bool isTransparent() { return m_transparent; }
     static void setTransparent(bool t) { m_transparent = t; }
 
@@ -69,7 +69,7 @@ private:
     static bool m_transparent;
 
     SWEFluid* swefluid = nullptr;
-    GridGeometry* grid = nullptr;
+
 
     QOpenGLVertexArrayObject sunVAO;
     QOpenGLBuffer sunVBO;
