@@ -5,6 +5,8 @@
 #include <QHBoxLayout>
 #include <QPushButton>
 #include <QFileDialog>
+#include <QMessageBox>
+
 
 Window::Window(MainWindow *mw)
     : mainWindow(mw)
@@ -40,14 +42,12 @@ void Window::uploadImage() {
     QString filePath = QFileDialog::getOpenFileName(this, tr("Open Image File"), "", tr("Image Files (*.png *.jpg *.bmp)"));
     QImage _image(filePath);
     // Do something with the selected image file path, e.g., pass it to GLWidget for rendering
-    if (!filePath.isEmpty()) {
+    if(!_image.isNull() && _image.isGrayscale()){
+        glWidget->grid->setHeightMap(_image);
+    }else{
+        QMessageBox::critical(this, tr("Error"), tr("Please select a black and white image."));
 
-
-        if(_image.isNull()){
-            qWarning() << "No image found for gradient.";
-        }else{
-            glWidget->grid->setHeightMap(_image);
-        }
-//        glWidget->grid->setHeightMap(filePath);
     }
+
+
 }
