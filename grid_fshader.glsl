@@ -14,7 +14,6 @@ out vec4 fragColor;
 uniform vec3 light_position;
 uniform float maxHeight;
 
-uniform sampler2D heightMap;
 uniform sampler2D gTextureHeight0;
 uniform sampler2D gTextureHeight1;
 uniform sampler2D gTextureHeight2;
@@ -22,7 +21,7 @@ uniform sampler2D gTextureHeight3;
 
 vec4 CalcTexColor() {
     vec4 TexColor;
-    float Height = texture2D(heightMap, Tex).r * maxHeight; // Sample the heightmap
+    float Height = v_position.y;
 
     // Define thresholds as percentages of maxHeight
     float heightThreshold1 = maxHeight * 0.05;

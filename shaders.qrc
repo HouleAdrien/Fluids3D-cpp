@@ -8,5 +8,7 @@
         <file>skybox_fshader.glsl</file>
         <file>grid_vshader.glsl</file>
         <file>grid_fshader.glsl</file>
+        <file>cube_vshader.glsl</file>
+        <file>cube_fshader.glsl</file>
     </qresource>
 </RCC>

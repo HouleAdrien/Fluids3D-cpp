@@ -33,7 +33,6 @@ GridGeometry::~GridGeometry() {
     arrayBuf.destroy();
     indexBuf.destroy();
 
-    delete heightMapTexture;
     delete gTextureHeight0;
     delete gTextureHeight1;
     delete gTextureHeight2;
@@ -41,7 +40,7 @@ GridGeometry::~GridGeometry() {
 }
 
 void GridGeometry::setHeightMap(const QImage& image) {
-    heightMapTexture = new QOpenGLTexture(image);
+    heightMapTexture = image;
 }
 
 
@@ -81,30 +80,78 @@ void GridGeometry::setTextureHeightMapsFromPaths(const QString& path0, const QSt
     setTextureHeightMaps(image0, image1, image2, image3);
 }
 
+float GridGeometry::getHeightAtPosition(float x, float z) {
+    // Ensure that x and z are within the bounds of the grid
+    if (x < 0.0f || x >= gridWidth || z < 0.0f || z >= gridDepth) {
+        return 0.0f; // Return a default height or an out-of-bounds value
+    }
+
+    // Normalize x and z to the range [0, 1] for texture sampling
+    float texX = x / static_cast<float>(gridWidth);
+    float texZ = z / static_cast<float>(gridDepth);
+
+    QColor pixelColor = heightMapTexture.pixelColor(texX * heightMapTexture.width(), texZ * heightMapTexture.height());
+
+    // Convert the sampled color to a floating-point height value
+    float height = pixelColor.red();
+    height /=255;
+    height *= maxHeight;
+
+    return height;
+}
+
+QVector2D GridGeometry::getGradientAtPosition(float x, float z) {
+    // Step size for gradient calculation
+    float stepSize = 1.0f;
+
+    // Ensure that x and z are within the bounds of the grid
+    if (x < 0.0f || x >= gridWidth || z < 0.0f || z >= gridDepth) {
+        return QVector2D(0.0f, 0.0f); // Return zero gradient for out-of-bounds
+    }
+
+    // Calculate heights at neighboring positions
+    float heightX1 = getHeightAtPosition(x + stepSize, z);
+    float heightX2 = getHeightAtPosition(x - stepSize, z);
+    float heightZ1 = getHeightAtPosition(x, z + stepSize);
+    float heightZ2 = getHeightAtPosition(x, z - stepSize);
+
+    // Calculate gradient
+    float dX = (heightX1 - heightX2) / (2.0f * stepSize);
+    float dZ = (heightZ1 - heightZ2) / (2.0f * stepSize);
+
+    return QVector2D(dX, dZ);
+}
+
+
 void GridGeometry::initGridGeometry() {
-    std::vector<GridVertexData> vertices;
     QVector3D normal(0.0f, 1.0f, 0.0f); // Normal pointing upwards
 
-    for (int x = 0; x < gridWidth; ++x) {
-        for (int z = 0; z < gridDepth; ++z) {
+
+    for (int z = 0; z < gridDepth; ++z) {
+        for (int x = 0; x < gridWidth; ++x) {
+            // Calculate texture coordinates based on original dimensions
             QVector2D texCoord(static_cast<float>(x) / gridWidth, static_cast<float>(z) / gridDepth);
-            vertices.push_back({QVector3D(x, -5.0f, z), normal, texCoord});
+
+            // Calculate height based on original dimensions
+            float height = getHeightAtPosition(static_cast<float>(x) , static_cast<float>(z) );
+
+            vertices.push_back({QVector3D(x , height, z ), normal, texCoord});
         }
     }
 
-    // Example indices for GL_TRIANGLE_STRIP
-    std::vector<GLushort> indices;
-    for (int z = 0; z < gridDepth - 1; ++z) {
-        if (z > 0)
-            indices.push_back(z * gridWidth); // Degenerate index
 
-        for (int x = 0; x < gridWidth; ++x) {
+    for (int z = 0; z < gridDepth - 1; ++z) {
+        for (int x = 0; x < gridWidth - 1; ++x) {
+            // First triangle in the quad
             indices.push_back(z * gridWidth + x);
             indices.push_back((z + 1) * gridWidth + x);
-        }
+            indices.push_back(z * gridWidth + x + 1);
 
-        if (z < gridDepth - 2)
-            indices.push_back((z + 1) * gridWidth + (gridWidth - 1)); // Degenerate index
+            // Second triangle in the quad
+            indices.push_back(z * gridWidth + x + 1);
+            indices.push_back((z + 1) * gridWidth + x);
+            indices.push_back((z + 1) * gridWidth + x + 1);
+        }
     }
 
     arrayBuf.bind();
@@ -155,7 +202,6 @@ void GridGeometry::drawGridGeometry(QOpenGLShaderProgram* program) {
         }
     };
 
-    bindTextureWithCheck(heightMapTexture, GL_TEXTURE0, "heightMap", 0);
     program->setUniformValue("maxHeight", maxHeight);
 
     bindTextureWithCheck(gTextureHeight0, GL_TEXTURE1, "gTextureHeight0", 1);
@@ -163,8 +209,24 @@ void GridGeometry::drawGridGeometry(QOpenGLShaderProgram* program) {
     bindTextureWithCheck(gTextureHeight2, GL_TEXTURE3, "gTextureHeight2", 3);
     bindTextureWithCheck(gTextureHeight3, GL_TEXTURE4, "gTextureHeight3", 4);
 
-    glDrawElements(GL_TRIANGLE_STRIP, indexBuf.size() / sizeof(GLushort), GL_UNSIGNED_SHORT, nullptr);
+    glDrawElements(GL_TRIANGLES, indexBuf.size() / sizeof(GLushort), GL_UNSIGNED_SHORT, nullptr);
 
     arrayBuf.release();
     indexBuf.release();
+}
+
+
+// Implement the getVertex and getIndex methods
+QVector3D GridGeometry::getVertex(int index) const {
+    if (index < 0 || index >= static_cast<int>(vertices.size())) {
+        return QVector3D(); 
+    }
+    return vertices[index].position;
+}
+
+GLushort GridGeometry::getIndex(int index) const {
+    if (index < 0 || index >= static_cast<int>(indices.size())) {
+        return 0; 
+    }
+    return indices[index];
 }

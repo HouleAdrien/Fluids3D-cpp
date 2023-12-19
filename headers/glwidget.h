@@ -7,8 +7,9 @@
 #include <QOpenGLBuffer>
 #include <QMatrix4x4>
 #include <QTimer>
-#include "../headers/SWEFluid.h"
-#include "../headers/GridGeometry.h"
+#include "SWEFluid.h"
+#include "GridGeometry.h"
+#include "cube.h"
 
 QT_FORWARD_DECLARE_CLASS(QOpenGLShaderProgram)
 
@@ -20,6 +21,8 @@ public:
     GLWidget(QWidget *parent = 0);
     ~GLWidget();
     GridGeometry* grid = nullptr;
+
+    Cube* cube= nullptr;
     static bool isTransparent() { return m_transparent; }
     static void setTransparent(bool t) { m_transparent = t; }
 
@@ -53,6 +56,7 @@ private:
     QOpenGLShaderProgram* m_skyboxProgram;
     QOpenGLShaderProgram* m_sunProgram;
     QOpenGLShaderProgram* grid_program;
+    QOpenGLShaderProgram* m_cubeProgram;
 
     int m_mvp_matrix_loc;
     int m_normal_matrix_loc;
@@ -62,6 +66,11 @@ private:
     int grid_mvp_matrix_loc;
     int grid_normal_matrix_loc;
     int grid_light_pos_loc;
+
+    int cube_mvp_matrix_loc;
+    int cube_normal_matrix_loc;
+    int cube_light_pos_loc;
+
 
     QMatrix4x4 m_projection;
     QMatrix4x4 m_view;
@@ -78,6 +87,7 @@ private:
     QOpenGLBuffer skyboxVBO;
 
     QVector3D sunPosition;
+
 };
 
 #endif

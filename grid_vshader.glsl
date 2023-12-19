@@ -10,13 +10,11 @@ out vec2 Tex;
 
 uniform mat4 mvp_matrix;
 uniform mat3 normal_matrix;
-uniform sampler2D heightMap;
 uniform float maxHeight;
 
 void main() {
-    float height = texture2D(heightMap, texCoord).r;
 
-    vec3 modifiedVertex = vec3(vertex.x, vertex.y + height * maxHeight, vertex.z);
+    vec3 modifiedVertex = vec3(vertex.x, vertex.y , vertex.z);
     v_position = modifiedVertex.xyz;
     v_normal = normal_matrix * normal;
     Tex = texCoord;

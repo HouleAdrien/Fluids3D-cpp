@@ -70,7 +70,8 @@ GLWidget::GLWidget(QWidget *parent)
     m_program(0),
     m_skyboxProgram(0),
     m_sunProgram(0),
-    grid_program(0)
+    grid_program(0),
+    m_cubeProgram(0)
 
 {
     m_core = QSurfaceFormat::defaultFormat().profile() == QSurfaceFormat::CoreProfile;
@@ -111,6 +112,8 @@ void GLWidget::cleanup()
     delete grid_program;
     delete m_skyboxProgram;
     delete m_sunProgram;
+    delete m_cubeProgram;
+    m_cubeProgram = 0;
     m_skyboxProgram = 0;
     m_sunProgram = 0;
     m_program = 0;
@@ -135,8 +138,6 @@ void GLWidget::initializeGL()
     // Define the sun's position
     QVector3D sunPosition = QVector3D(50, 100, 50);
 
-    m_program->bindAttributeLocation("fluid_vertex", 0);
-    m_program->bindAttributeLocation("fluid_normal", 1);
 
     if (!m_program->link())
         close();
@@ -160,9 +161,6 @@ void GLWidget::initializeGL()
         close();
     if (!grid_program->addShaderFromSourceFile(QOpenGLShader::Fragment, ":/grid_fshader.glsl"))
         close();
-
-    grid_program->bindAttributeLocation("vertex", 0);
-    grid_program->bindAttributeLocation("normal", 1);
 
     if (!grid_program->link())
         close();
@@ -192,6 +190,24 @@ void GLWidget::initializeGL()
     m_skyboxProgram->addShaderFromSourceFile(QOpenGLShader::Fragment, ":/skybox_fshader.glsl");
     m_skyboxProgram->link();
 
+    m_cubeProgram = new QOpenGLShaderProgram;
+    m_cubeProgram->addShaderFromSourceFile(QOpenGLShader::Vertex, ":/cube_vshader.glsl");
+    m_cubeProgram->addShaderFromSourceFile(QOpenGLShader::Fragment, ":/cube_fshader.glsl");
+
+    if (!m_cubeProgram->link())
+        close();
+    if (!m_cubeProgram->bind())
+        close();
+
+    cube_mvp_matrix_loc = m_cubeProgram->uniformLocation("mvp_matrix");
+    cube_normal_matrix_loc = m_cubeProgram->uniformLocation("normal_matrix");
+    cube_light_pos_loc = m_cubeProgram->uniformLocation("light_position");
+
+    // Set the light position to the sun's position
+    m_cubeProgram->setUniformValue(cube_light_pos_loc, sunPosition);
+
+    m_cubeProgram->release();
+    cube = new Cube(grid);
     // Sun Shader Program
     m_sunProgram = new QOpenGLShaderProgram;
     m_sunProgram->addShaderFromSourceFile(QOpenGLShader::Vertex, ":/sun_vshader.glsl");
@@ -246,9 +262,6 @@ void GLWidget::paintGL()
     
     updateSimulation();
 
-
-
-
     //render grid
 
     grid_program->bind();
@@ -263,6 +276,15 @@ void GLWidget::paintGL()
     grid_program->release();
 
 
+    m_cubeProgram->bind();
+
+    m_cubeProgram->setUniformValue(cube_mvp_matrix_loc, m_projection * m_view * m_model);
+    QMatrix3x3 cube_normal_matrix = m_model.normalMatrix();
+    m_cubeProgram->setUniformValue(cube_normal_matrix_loc, cube_normal_matrix);
+    cube->UpdateParticles(0.03f);
+    cube->render(m_cubeProgram);
+
+    m_cubeProgram->release();
 
 
     // Render Skybox
@@ -337,24 +359,12 @@ void GLWidget::wheelEvent(QWheelEvent *event)
 
 void GLWidget::mousePressEvent(QMouseEvent *event)
 {
-    m_last_position = event->pos();
+
 }
 
 void GLWidget::mouseMoveEvent(QMouseEvent *event)
 {
-    int dx = event->x() - m_last_position.x();
-    int dy = event->y() - m_last_position.y();
 
-    if (event->buttons() & Qt::LeftButton) {
-        float scaleFactor = 0.01;
-        m_view.translate(-dx * scaleFactor, dy * scaleFactor, 0.0f);
-    } else if (event->buttons() & Qt::RightButton) {
-        float angleFactor = 0.5;
-        m_view.rotate(dy * angleFactor, 1, 0, 0);
-        m_view.rotate(dx * angleFactor, 0, 1, 0);
-    }
-    m_last_position = event->pos();
-    update();
 }
 
 void GLWidget::keyPressEvent(QKeyEvent *event) {
@@ -365,8 +375,8 @@ void GLWidget::keyPressEvent(QKeyEvent *event) {
         int borderThickness = 1;
 
         for (int i = 0; i < numberOfCircles; ++i) {
-            int centerX = rand() % 80+20;
-            int centerY = rand() % 80+20;
+            int centerX = rand() % 150+20;
+            int centerY = rand() % 150+20;
             int diameter = 10;
             int radius = diameter / 2;
 
@@ -385,6 +395,15 @@ void GLWidget::keyPressEvent(QKeyEvent *event) {
         swefluid->updateVertexBuffer();
 //        update();
     }
+
+    if (event->key() == Qt::Key_P) {
+        for(int i = 0 ; i< 10 ; i++)
+            for(int j = 0 ; j< 10 ; j++){
+                cube->createPointGeometry({ float(100+i), 50, float(100+j)});
+            }
+
+    }
+
 
 
     const float cameraSpeed = 1.0f;
