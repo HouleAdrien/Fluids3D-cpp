@@ -57,6 +57,7 @@ private:
     QOpenGLShaderProgram* m_sunProgram;
     QOpenGLShaderProgram* grid_program;
     QOpenGLShaderProgram* m_cubeProgram;
+    QOpenGLShaderProgram* rayProgram;
 
     int m_mvp_matrix_loc;
     int m_normal_matrix_loc;
@@ -87,6 +88,13 @@ private:
     QOpenGLBuffer skyboxVBO;
 
     QVector3D sunPosition;
+
+    QPoint lastPos;
+
+    QVector3D cameraPosition;
+    QVector3D rayOrigin;
+    QVector3D rayEnd;
+    bool drawRay = false;
 
 };
 

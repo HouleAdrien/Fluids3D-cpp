@@ -5,6 +5,7 @@
 #include <math.h>
 #include <cstdlib>  // For rand() and srand()
 #include <ctime>    // For time()
+#include <QPainter>
 
 
 float skyboxVertices[] = {
@@ -71,7 +72,9 @@ GLWidget::GLWidget(QWidget *parent)
     m_skyboxProgram(0),
     m_sunProgram(0),
     grid_program(0),
-    m_cubeProgram(0)
+    m_cubeProgram(0),
+    rayProgram(0),
+    lastPos(0, 0)
 
 {
     m_core = QSurfaceFormat::defaultFormat().profile() == QSurfaceFormat::CoreProfile;
@@ -85,7 +88,8 @@ GLWidget::GLWidget(QWidget *parent)
         QSurfaceFormat::setDefaultFormat(format);
 
     }
-      setFocusPolicy(Qt::StrongFocus);
+    setFocusPolicy(Qt::StrongFocus);
+    setMouseTracking(true);
 }
 
 GLWidget::~GLWidget()
@@ -113,11 +117,13 @@ void GLWidget::cleanup()
     delete m_skyboxProgram;
     delete m_sunProgram;
     delete m_cubeProgram;
+    delete rayProgram;
     m_cubeProgram = 0;
     m_skyboxProgram = 0;
     m_sunProgram = 0;
     m_program = 0;
     grid_program = 0;
+    rayProgram = 0;
     doneCurrent();
 }
 
@@ -182,6 +188,7 @@ void GLWidget::initializeGL()
 
     m_view.setToIdentity();
     m_view.translate(-50, 5, -60);
+    cameraPosition = {-50, 5, -60};
     m_view.rotate(45 / 16.0f, 1, 0, 0);
 
     // Skybox Shader Program
@@ -232,7 +239,29 @@ void GLWidget::initializeGL()
     glEnableVertexAttribArray(0);
     glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void*)0);
     skyboxVAO.release();
+
+
+    rayProgram = new QOpenGLShaderProgram(this);
+
+    // Load and compile the vertex shader
+    if (!rayProgram->addShaderFromSourceFile(QOpenGLShader::Vertex, ":/ray_vshader.glsl")) {
+        qDebug() << "Error compiling vertex shader:" << rayProgram->log();
+        return;
+    }
+
+    // Load and compile the fragment shader
+    if (!rayProgram->addShaderFromSourceFile(QOpenGLShader::Fragment, ":/ray_fshader.glsl")) {
+        qDebug() << "Error compiling fragment shader:" << rayProgram->log();
+        return;
+    }
+
+    // Link the shaders
+    if (!rayProgram->link()) {
+        qDebug() << "Error linking shader program:" << rayProgram->log();
+        return;
+    }
 }
+
 
 
 void GLWidget::paintGL()
@@ -313,6 +342,41 @@ void GLWidget::paintGL()
     m_sunProgram->release();
 
 
+    if (drawRay) {
+        glLineWidth(100.0f);
+        // Set up the program for drawing the ray
+        rayProgram->bind(); // Assuming you have a separate shader program for the ray
+
+        // Set the MVP matrix for the ray
+        rayProgram->setUniformValue("mvp_matrix", m_projection * m_view * m_model);
+
+        // Define vertices for the ray line
+        GLfloat rayVertices[] = {
+            rayOrigin.x(), rayOrigin.y(), rayOrigin.z(),
+            rayEnd.x(), rayEnd.y(), rayEnd.z()
+        };
+
+        // Create a temporary VBO
+        GLuint VBO;
+        glGenBuffers(1, &VBO);
+        glBindBuffer(GL_ARRAY_BUFFER, VBO);
+        glBufferData(GL_ARRAY_BUFFER, sizeof(rayVertices), rayVertices, GL_STATIC_DRAW);
+
+        // Position attribute
+        GLint posAttrib = rayProgram->attributeLocation("position"); // Replace 'position' with your actual attribute name in shader
+        glEnableVertexAttribArray(posAttrib);
+        glVertexAttribPointer(posAttrib, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(GLfloat), (GLvoid*)0);
+
+        glDrawArrays(GL_LINES, 0, 2); // Draw the line
+
+        // Clean up
+        glBindBuffer(GL_ARRAY_BUFFER, 0);
+        glDeleteBuffers(1, &VBO);
+
+        rayProgram->release();
+        glLineWidth(1.0f);
+    }
+
     update();
 
 }
@@ -354,16 +418,63 @@ void GLWidget::wheelEvent(QWheelEvent *event)
     }
     update();
 }
-
-
-
 void GLWidget::mousePressEvent(QMouseEvent *event)
 {
+    if (event->button() == Qt::LeftButton) {
+        // Retrieve the size of the OpenGL context
+        QSize viewportSize = this->size();
+        float screenWidth = viewportSize.width();
+        float screenHeight = viewportSize.height();
 
+        // Convert the screen coordinates to normalized device coordinates (NDC)
+        float x = (2.0f * event->x()) / screenWidth - 1.0f;
+        float y = 1.0f - (2.0f * event->y()) / screenHeight;
+        QVector4D rayClip = QVector4D(x, y, -1.0f, 1.0f);
+
+        // Convert clip coordinates to eye coordinates
+        QMatrix4x4 inverseProjectionMatrix = m_projection.inverted(); // Assuming you have projectionMatrix defined
+        QVector4D rayEye = inverseProjectionMatrix * rayClip;
+        rayEye = QVector4D(rayEye.x(), rayEye.y(), -1.0f, 0.0f);
+
+        // Convert to world coordinates
+        QMatrix4x4 inverseViewMatrix = m_view.inverted(); // Assuming you have viewMatrix defined
+        QVector3D rayWorld = inverseViewMatrix.map(rayEye.toVector3D());
+        rayWorld.normalize();
+
+        // Set ray's origin and calculate its end point
+        rayOrigin = cameraPosition;
+        //rayEnd = rayOrigin + rayWorld * 1000.0f; // Adjust the length of the ray as needed
+        rayEnd = {50,20,50};
+        drawRay = true;
+        // Now you have rayOrigin and rayEnd for your ray
+        // Add your logic for ray intersection or other operations
+    }
 }
+
+
+
 
 void GLWidget::mouseMoveEvent(QMouseEvent *event)
 {
+    qDebug() << "Mouse Move Event";
+    qDebug() << "Buttons:" << event->buttons();
+
+
+    static QPoint lastPos = event->pos();
+
+    // Calculate the mouse movement
+    float deltaX = event->x() - lastPos.x();
+    float deltaY = event->y() - lastPos.y();
+
+    const float sensitivity = 0.01f;
+
+    // Update the view matrix based on mouse movement
+    m_view.rotate(-deltaX * sensitivity, 0, 1, 0); // Yaw
+    m_view.rotate(-deltaY * sensitivity, 1, 0, 0); // Pitch
+
+    lastPos = event->pos();
+
+    update();
 
 }
 
@@ -411,15 +522,19 @@ void GLWidget::keyPressEvent(QKeyEvent *event) {
     switch (event->key()) {
     case Qt::Key_Up:
         m_view.translate(0.0f, 0.0f, cameraSpeed);
+        cameraPosition = {cameraPosition.x(), cameraPosition.y(), cameraPosition.z()+cameraSpeed};
         break;
     case Qt::Key_Down:
         m_view.translate(0.0f, 0.0f, -cameraSpeed);
+        cameraPosition = {cameraPosition.x(), cameraPosition.y(), cameraPosition.z()-cameraSpeed};
         break;
     case Qt::Key_Right:
         m_view.translate(-cameraSpeed, 0.0f, 0.0f);
+        cameraPosition = {cameraPosition.x()-cameraSpeed, cameraPosition.y(), cameraPosition.z()};
         break;
     case Qt::Key_Left:
         m_view.translate(cameraSpeed, 0.0f, 0.0f);
+        cameraPosition = {cameraPosition.x()+cameraSpeed, cameraPosition.y(), cameraPosition.z()};
         break;
     default:
         break;

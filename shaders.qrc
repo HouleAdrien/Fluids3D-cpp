@@ -10,5 +10,7 @@
         <file>grid_fshader.glsl</file>
         <file>cube_vshader.glsl</file>
         <file>cube_fshader.glsl</file>
+        <file>ray_fshader.glsl</file>
+        <file>ray_vshader.glsl</file>
     </qresource>
 </RCC>
