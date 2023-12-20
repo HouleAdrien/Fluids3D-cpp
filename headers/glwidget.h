@@ -9,7 +9,8 @@
 #include <QTimer>
 #include "SWEFluid.h"
 #include "GridGeometry.h"
-#include "cube.h"
+#include "sphere.h"
+#include "camera.h"
 
 QT_FORWARD_DECLARE_CLASS(QOpenGLShaderProgram)
 
@@ -22,7 +23,7 @@ public:
     ~GLWidget();
     GridGeometry* grid = nullptr;
 
-    Cube* cube= nullptr;
+    std::vector<Sphere*> spheres;
     static bool isTransparent() { return m_transparent; }
     static void setTransparent(bool t) { m_transparent = t; }
 
@@ -33,7 +34,7 @@ public:
 
 public slots:
     void cleanup();
-     void updateSimulation();
+    void updateSimulation();
 
 protected:
     void initializeGL() override;
@@ -56,7 +57,7 @@ private:
     QOpenGLShaderProgram* m_skyboxProgram;
     QOpenGLShaderProgram* m_sunProgram;
     QOpenGLShaderProgram* grid_program;
-    QOpenGLShaderProgram* m_cubeProgram;
+    QOpenGLShaderProgram* m_sphereProgram;
     QOpenGLShaderProgram* rayProgram;
 
     int m_mvp_matrix_loc;
@@ -68,13 +69,15 @@ private:
     int grid_normal_matrix_loc;
     int grid_light_pos_loc;
 
-    int cube_mvp_matrix_loc;
-    int cube_normal_matrix_loc;
-    int cube_light_pos_loc;
+    int sphere_mvp_matrix_loc;
+    int sphere_normal_matrix_loc;
+    int sphere_light_pos_loc;
 
 
     QMatrix4x4 m_projection;
     QMatrix4x4 m_view;
+    Camera* camera;
+
     QMatrix4x4 m_model;
     static bool m_transparent;
 
@@ -91,7 +94,6 @@ private:
 
     QPoint lastPos;
 
-    QVector3D cameraPosition;
     QVector3D rayOrigin;
     QVector3D rayEnd;
     bool drawRay = false;

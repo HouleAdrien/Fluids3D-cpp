@@ -123,6 +123,26 @@ QVector2D GridGeometry::getGradientAtPosition(float x, float z) {
 }
 
 
+bool GridGeometry::intersectsRay(const QVector3D &rayOrigin, const QVector3D &rayDirection, float rayLength, QVector3D &intersectionPoint) {
+    float tolerance = 0.2f; // Tolerance for intersection
+    float stepSize = 1.0f; // Tune this value as needed
+
+    for (float t = 0.0f; t <= rayLength; t += stepSize) {
+        QVector3D pointOnRay = rayOrigin + rayDirection.normalized() * t;
+        float terrainHeight = getHeightAtPosition(pointOnRay.x(), pointOnRay.z());
+
+        // Check if the ray's y-coordinate is within the tolerance range of the terrain height
+        if (std::abs(pointOnRay.y() - terrainHeight) <= tolerance) {
+            intersectionPoint = QVector3D(pointOnRay.x(), terrainHeight, pointOnRay.z());
+            return true; // Ray intersects the terrain within the tolerance range
+        }
+    }
+
+    return false; // No intersection found within the tolerance range
+}
+
+
+
 void GridGeometry::initGridGeometry() {
     QVector3D normal(0.0f, 1.0f, 0.0f); // Normal pointing upwards
 

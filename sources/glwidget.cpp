@@ -6,6 +6,8 @@
 #include <cstdlib>  // For rand() and srand()
 #include <ctime>    // For time()
 #include <QPainter>
+#include <QApplication>
+#include <QScreen>
 
 
 float skyboxVertices[] = {
@@ -72,22 +74,24 @@ GLWidget::GLWidget(QWidget *parent)
     m_skyboxProgram(0),
     m_sunProgram(0),
     grid_program(0),
-    m_cubeProgram(0),
+    m_sphereProgram(0),
     rayProgram(0),
     lastPos(0, 0)
 
 {
     m_core = QSurfaceFormat::defaultFormat().profile() == QSurfaceFormat::CoreProfile;
-    // --transparent causes the clear color to be transparent. Therefore, on systems that
-    // support it, the widget will become transparent apart from the logo.
-    if (m_transparent) {
+
+
         QSurfaceFormat format;
+        format.setDepthBufferSize(24);
+        format.setStencilBufferSize(8);
         format.setAlphaBufferSize(8);
-        format.setVersion(3, 3); // Set to OpenGL version 3.3
-        format.setProfile(QSurfaceFormat::CoreProfile); // Using Core profile
+        format.setVersion(4, 0);
+        format.setProfile(QSurfaceFormat::CoreProfile);
         QSurfaceFormat::setDefaultFormat(format);
 
-    }
+
+
     setFocusPolicy(Qt::StrongFocus);
     setMouseTracking(true);
 }
@@ -116,9 +120,9 @@ void GLWidget::cleanup()
     delete grid_program;
     delete m_skyboxProgram;
     delete m_sunProgram;
-    delete m_cubeProgram;
+    delete m_sphereProgram;
     delete rayProgram;
-    m_cubeProgram = 0;
+    m_sphereProgram = 0;
     m_skyboxProgram = 0;
     m_sunProgram = 0;
     m_program = 0;
@@ -186,10 +190,8 @@ void GLWidget::initializeGL()
 
     swefluid = new SWEFluid(200, 200);
 
-    m_view.setToIdentity();
-    m_view.translate(-50, 5, -60);
-    cameraPosition = {-50, 5, -60};
-    m_view.rotate(45 / 16.0f, 1, 0, 0);
+    camera= new Camera({100,20,100});
+    m_view =  camera->GetViewMatrix();
 
     // Skybox Shader Program
     m_skyboxProgram = new QOpenGLShaderProgram;
@@ -197,24 +199,28 @@ void GLWidget::initializeGL()
     m_skyboxProgram->addShaderFromSourceFile(QOpenGLShader::Fragment, ":/skybox_fshader.glsl");
     m_skyboxProgram->link();
 
-    m_cubeProgram = new QOpenGLShaderProgram;
-    m_cubeProgram->addShaderFromSourceFile(QOpenGLShader::Vertex, ":/cube_vshader.glsl");
-    m_cubeProgram->addShaderFromSourceFile(QOpenGLShader::Fragment, ":/cube_fshader.glsl");
+    m_sphereProgram = new QOpenGLShaderProgram;
+    m_sphereProgram->addShaderFromSourceFile(QOpenGLShader::Vertex, ":/sphere_vshader.glsl");
 
-    if (!m_cubeProgram->link())
+    m_sphereProgram->addShaderFromSourceFile(QOpenGLShader::Fragment, ":/sphere_fshader.glsl");
+
+    if (!m_sphereProgram->link())
         close();
-    if (!m_cubeProgram->bind())
+    if (!m_sphereProgram->bind())
         close();
 
-    cube_mvp_matrix_loc = m_cubeProgram->uniformLocation("mvp_matrix");
-    cube_normal_matrix_loc = m_cubeProgram->uniformLocation("normal_matrix");
-    cube_light_pos_loc = m_cubeProgram->uniformLocation("light_position");
+    sphere_mvp_matrix_loc = m_sphereProgram->uniformLocation("mvp_matrix");
+    sphere_normal_matrix_loc = m_sphereProgram->uniformLocation("normal_matrix");
+    sphere_light_pos_loc = m_sphereProgram->uniformLocation("light_position");
 
     // Set the light position to the sun's position
-    m_cubeProgram->setUniformValue(cube_light_pos_loc, sunPosition);
+    m_sphereProgram->setUniformValue(sphere_light_pos_loc, sunPosition);
 
-    m_cubeProgram->release();
-    cube = new Cube(grid);
+
+
+
+    m_sphereProgram->release();
+
     // Sun Shader Program
     m_sunProgram = new QOpenGLShaderProgram;
     m_sunProgram->addShaderFromSourceFile(QOpenGLShader::Vertex, ":/sun_vshader.glsl");
@@ -260,6 +266,16 @@ void GLWidget::initializeGL()
         qDebug() << "Error linking shader program:" << rayProgram->log();
         return;
     }
+
+    // Get the primary screen
+    QScreen *screen = QApplication::primaryScreen();
+    QRect screenGeometry = screen->geometry();
+    QPoint centerPoint = screenGeometry.center();
+
+
+    setCursor(Qt::BlankCursor);
+    QCursor::setPos(centerPoint);
+
 }
 
 
@@ -270,6 +286,7 @@ void GLWidget::paintGL()
     glEnable(GL_DEPTH_TEST);
     glEnable(GL_BLEND);
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+    m_view = camera->GetViewMatrix();
 
     // Configuration de la matrice de transformation
     m_model.setToIdentity();
@@ -288,7 +305,7 @@ void GLWidget::paintGL()
     swefluid->drawGridGeometry(m_program);
 
     m_program->release();
-    
+
     updateSimulation();
 
     //render grid
@@ -305,15 +322,19 @@ void GLWidget::paintGL()
     grid_program->release();
 
 
-    m_cubeProgram->bind();
+    m_sphereProgram->bind();
 
-    m_cubeProgram->setUniformValue(cube_mvp_matrix_loc, m_projection * m_view * m_model);
-    QMatrix3x3 cube_normal_matrix = m_model.normalMatrix();
-    m_cubeProgram->setUniformValue(cube_normal_matrix_loc, cube_normal_matrix);
-    cube->UpdateParticles(0.03f);
-    cube->render(m_cubeProgram);
+    m_sphereProgram->setUniformValue(sphere_mvp_matrix_loc, m_projection * m_view * m_model);
+    QMatrix3x3 sphere_normal_matrix = m_model.normalMatrix();
+    m_sphereProgram->setUniformValue(sphere_normal_matrix_loc, sphere_normal_matrix);
 
-    m_cubeProgram->release();
+    for(int i = 0; i < spheres.size() ; i++){
+        
+        spheres[i]->UpdateParticles(0.03f);
+        spheres[i]->render(m_sphereProgram);
+
+        m_sphereProgram->release();
+    }
 
 
     // Render Skybox
@@ -404,79 +425,97 @@ void GLWidget::setFoV(float fov)
 void GLWidget::updateProjectionMatrix()
 {
     m_projection.setToIdentity();
-    m_projection.perspective(m_currentFoV, float(width()) / float(height()),  0.000001f, 100000.0f);
+    m_projection.perspective(m_currentFoV, float(width()) / float(height()),   0.1f, 1000.0f);
     update();
 }
 
 
-void GLWidget::wheelEvent(QWheelEvent *event)
-{
+void GLWidget::wheelEvent(QWheelEvent *event) {
     QPoint numDegrees = event->angleDelta() / 8;
     if (!numDegrees.isNull()) {
         QPoint numSteps = numDegrees / 15;
-        m_view.translate(0, 0, numSteps.y() * 1.0f); // Adjust 0.1f to control the speed of zoom
+        float zoomSpeed = 0.1f; // Adjust as needed
+        camera->ProcessKeyboard(numSteps.y() > 0 ? Qt::Key_Up : Qt::Key_Down, zoomSpeed);
     }
     update();
 }
-void GLWidget::mousePressEvent(QMouseEvent *event)
-{
+
+void GLWidget::mousePressEvent(QMouseEvent *event) {
     if (event->button() == Qt::LeftButton) {
         // Retrieve the size of the OpenGL context
         QSize viewportSize = this->size();
         float screenWidth = viewportSize.width();
         float screenHeight = viewportSize.height();
 
-        // Convert the screen coordinates to normalized device coordinates (NDC)
+        // Convert the mouse click position to normalized device coordinates (NDC)
         float x = (2.0f * event->x()) / screenWidth - 1.0f;
         float y = 1.0f - (2.0f * event->y()) / screenHeight;
+
+        // Convert NDC to clip coordinates
         QVector4D rayClip = QVector4D(x, y, -1.0f, 1.0f);
 
         // Convert clip coordinates to eye coordinates
-        QMatrix4x4 inverseProjectionMatrix = m_projection.inverted(); // Assuming you have projectionMatrix defined
+        QMatrix4x4 inverseProjectionMatrix = m_projection.inverted();
         QVector4D rayEye = inverseProjectionMatrix * rayClip;
         rayEye = QVector4D(rayEye.x(), rayEye.y(), -1.0f, 0.0f);
 
         // Convert to world coordinates
-        QMatrix4x4 inverseViewMatrix = m_view.inverted(); // Assuming you have viewMatrix defined
-        QVector3D rayWorld = inverseViewMatrix.map(rayEye.toVector3D());
-        rayWorld.normalize();
+        QMatrix4x4 inverseViewMatrix = camera->GetViewMatrix().inverted();
+        QVector3D rayWorld = inverseViewMatrix.map(rayEye.toVector3D()).normalized();
 
-        // Set ray's origin and calculate its end point
-        rayOrigin = cameraPosition;
-        //rayEnd = rayOrigin + rayWorld * 1000.0f; // Adjust the length of the ray as needed
-        rayEnd = {50,20,50};
+        // Calculate the ray's origin and both directions
+        QVector3D rayOrigin = camera->Position;
+        QVector3D forwardRayDirection = rayWorld;
+        QVector3D backwardRayDirection = -rayWorld;
+
+        // Set the ray's end points for both directions
+        float rayLength = 100.0f; // Adjust the length of the ray as needed
+        QVector3D forwardRayEnd = rayOrigin + forwardRayDirection * rayLength;
+        QVector3D backwardRayEnd = rayOrigin + backwardRayDirection * rayLength;
+
         drawRay = true;
-        // Now you have rayOrigin and rayEnd for your ray
-        // Add your logic for ray intersection or other operations
+
+        // Intersection test for the forward ray
+        QVector3D forwardHitPoint;
+        if (grid->intersectsRay(rayOrigin, forwardRayDirection, rayLength, forwardHitPoint)) {
+           // Sphere* newSphere = new Sphere(grid,{ forwardHitPoint.x(), forwardHitPoint.y() + 30, forwardHitPoint.z()},0.5f,12);
+           // spheres.push_back(newSphere);
+        }
+
+        rayOrigin = backwardRayEnd;
+        QVector3D backwardHitPoint;
+        if (grid->intersectsRay(rayOrigin, backwardRayDirection, rayLength, backwardHitPoint)) {
+           // Sphere* newSphere = new Sphere(grid,{ backwardHitPoint.x(), backwardHitPoint.y() + 30, backwardHitPoint.z()},0.5f,12);
+           // spheres.push_back(newSphere);
+        }
+
+        rayEnd = forwardRayEnd;
     }
+
+
 }
 
 
 
 
-void GLWidget::mouseMoveEvent(QMouseEvent *event)
-{
-    qDebug() << "Mouse Move Event";
-    qDebug() << "Buttons:" << event->buttons();
+void GLWidget::mouseMoveEvent(QMouseEvent *event) {
+    QPoint currentPos = event->pos();
 
+    if (!lastPos.isNull()) {
+        // Calculate the difference in position
+        float deltaX = currentPos.x() - lastPos.x();
+        float deltaY = currentPos.y() - lastPos.y();
 
-    static QPoint lastPos = event->pos();
+        const float sensitivity = 2.0f; // Adjust sensitivity as needed
 
-    // Calculate the mouse movement
-    float deltaX = event->x() - lastPos.x();
-    float deltaY = event->y() - lastPos.y();
+        // Update camera based on the delta movement
+        camera->ProcessMouseMovement( deltaX* sensitivity, (-deltaY) * sensitivity);
+    }
 
-    const float sensitivity = 0.01f;
-
-    // Update the view matrix based on mouse movement
-    m_view.rotate(-deltaX * sensitivity, 0, 1, 0); // Yaw
-    m_view.rotate(-deltaY * sensitivity, 1, 0, 0); // Pitch
-
-    lastPos = event->pos();
-
+    lastPos = currentPos;
     update();
-
 }
+
 
 void GLWidget::keyPressEvent(QKeyEvent *event) {
     if (event->key() == Qt::Key_T) {
@@ -504,41 +543,33 @@ void GLWidget::keyPressEvent(QKeyEvent *event) {
         }
 
         swefluid->updateVertexBuffer();
-//        update();
+        //   update();
     }
 
     if (event->key() == Qt::Key_P) {
-        for(int i = 0 ; i< 10 ; i++)
-            for(int j = 0 ; j< 10 ; j++){
-                cube->createPointGeometry({ float(100+i), 50, float(100+j)});
-            }
-
+        Sphere* newSphere = new Sphere(grid,{ float(100), 50, float(100)},0.5f,12);
+        spheres.push_back(newSphere);
+            
     }
 
+    if (event->key() == Qt::Key_Control) {
+        // Get the primary screen
+        QScreen *screen = QApplication::primaryScreen();
+        QRect screenGeometry = screen->geometry();
+        QPoint centerPoint = screenGeometry.center();
 
-
-    const float cameraSpeed = 1.0f;
-
-    switch (event->key()) {
-    case Qt::Key_Up:
-        m_view.translate(0.0f, 0.0f, cameraSpeed);
-        cameraPosition = {cameraPosition.x(), cameraPosition.y(), cameraPosition.z()+cameraSpeed};
-        break;
-    case Qt::Key_Down:
-        m_view.translate(0.0f, 0.0f, -cameraSpeed);
-        cameraPosition = {cameraPosition.x(), cameraPosition.y(), cameraPosition.z()-cameraSpeed};
-        break;
-    case Qt::Key_Right:
-        m_view.translate(-cameraSpeed, 0.0f, 0.0f);
-        cameraPosition = {cameraPosition.x()-cameraSpeed, cameraPosition.y(), cameraPosition.z()};
-        break;
-    case Qt::Key_Left:
-        m_view.translate(cameraSpeed, 0.0f, 0.0f);
-        cameraPosition = {cameraPosition.x()+cameraSpeed, cameraPosition.y(), cameraPosition.z()};
-        break;
-    default:
-        break;
+        if (cursor().shape() == Qt::BlankCursor) {
+            setCursor(Qt::ArrowCursor);  // Show cursor
+            // Unlock the cursor (allow it to move freely)
+            QCursor::setPos(mapToGlobal(geometry().center())); // Move cursor back to the center of the widget
+        } else {
+            setCursor(Qt::BlankCursor);  // Hide cursor
+            // Lock the cursor in the center of the screen
+            QCursor::setPos(centerPoint);
+        }
     }
+
+    camera->ProcessKeyboard(event->key() ,1.0f);
 
     update();
 

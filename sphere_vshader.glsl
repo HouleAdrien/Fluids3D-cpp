@@ -1,4 +1,4 @@
-#version 150
+#version 400
 
 in vec4 vertex;
 in vec3 normal;
@@ -12,14 +12,12 @@ uniform mat4 mvp_matrix;     // Model-View-Projection matrix
 uniform mat3 normal_matrix;  // Normal matrix for transforming normals
 
 void main() {
-    gl_Position = mvp_matrix * vertex;
-    fragNormal = normal;
     fragTexCoord = texCoord;
 
+    fragNormal = normal_matrix * normal;
+
     // Calculate the world-space position of the vertex
-    fragPosition = vertex.xyz;
+    fragPosition = vertex.xyz ;
 
-
-    // Pass the vertex position as a varying attribute
-    gl_PointSize = 10.0f; // Adjust the point size as needed
+    gl_Position = mvp_matrix * vertex;
 }

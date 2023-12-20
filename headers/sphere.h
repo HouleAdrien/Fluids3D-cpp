@@ -1,5 +1,5 @@
-#ifndef CUBE_H
-#define CUBE_H
+#ifndef SPHERE_H
+#define SPHERE_H
 
 #include <QVector3D>
 #include <QOpenGLFunctions>
@@ -7,26 +7,31 @@
 #include <QOpenGLBuffer>
 #include <random>
 #include <vector>
-#include "../headers/GridGeometry.h"
+#include "GridGeometry.h"
 
-struct cube_VertexData {
+struct sphere_VertexData {
     QVector3D position;
     QVector3D velocity;
     QVector3D accumulatedForce;
+    QVector3D offset;
 };
 
-class Cube : protected QOpenGLFunctions {
+class Sphere : protected QOpenGLFunctions {
 public:
-    Cube( GridGeometry* _terrain);
-    ~Cube();
+    Sphere( GridGeometry* _terrain,QVector3D CenterPosition, float radius, int numSegments);
+    ~Sphere();
     void UpdateParticles(float dt);
     void render(QOpenGLShaderProgram* program);
-    void createPointGeometry(QVector3D InstantiatedPosition);
-
+  
 private:
+    void createSphereGeometry(QVector3D CenterPosition, float radius, int numSegments) ;
+
+    float timevalue = 0.0f;
     QVector3D position;
     QOpenGLBuffer arrayBuf;
-    std::vector<cube_VertexData> vertices;
+    QOpenGLBuffer indexBuf; // Index buffer for triangles
+    std::vector<sphere_VertexData> vertices;
+    QVector<GLuint> indices;
     float gravity = -9.81;
     float restitutionCoefficient = 2; // Adjust as needed for particle rebound
     GridGeometry* terrain;
@@ -35,4 +40,4 @@ private:
 
 };
 
-#endif // CUBE_H
+#endif // SPHERE_H

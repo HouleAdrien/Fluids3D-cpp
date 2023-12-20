@@ -28,6 +28,7 @@ public:
     QVector3D getVertex(int index) const;
     GLushort getIndex(int index) const;
     QVector2D getGradientAtPosition(float x, float z);
+    bool intersectsRay(const QVector3D &rayOrigin, const QVector3D &rayDirection, float rayLength, QVector3D &intersectionPoint);
     QImage heightMapTexture;
     float maxHeight = 30;
 private:
