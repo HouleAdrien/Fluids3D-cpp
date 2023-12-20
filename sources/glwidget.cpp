@@ -82,13 +82,13 @@ GLWidget::GLWidget(QWidget *parent)
     m_core = QSurfaceFormat::defaultFormat().profile() == QSurfaceFormat::CoreProfile;
 
 
-        QSurfaceFormat format;
-        format.setDepthBufferSize(24);
-        format.setStencilBufferSize(8);
-        format.setAlphaBufferSize(8);
-        format.setVersion(4, 0);
-        format.setProfile(QSurfaceFormat::CoreProfile);
-        QSurfaceFormat::setDefaultFormat(format);
+    QSurfaceFormat format;
+    format.setDepthBufferSize(24);
+    format.setStencilBufferSize(8);
+    format.setAlphaBufferSize(8);
+    format.setVersion(4, 0);
+    format.setProfile(QSurfaceFormat::CoreProfile);
+    QSurfaceFormat::setDefaultFormat(format);
 
 
 
@@ -329,12 +329,13 @@ void GLWidget::paintGL()
     m_sphereProgram->setUniformValue(sphere_normal_matrix_loc, sphere_normal_matrix);
 
     for(int i = 0; i < spheres.size() ; i++){
-        
+
         spheres[i]->UpdateParticles(0.03f);
         spheres[i]->render(m_sphereProgram);
 
-        m_sphereProgram->release();
+
     }
+    m_sphereProgram->release();
 
 
     // Render Skybox
@@ -478,15 +479,15 @@ void GLWidget::mousePressEvent(QMouseEvent *event) {
         // Intersection test for the forward ray
         QVector3D forwardHitPoint;
         if (grid->intersectsRay(rayOrigin, forwardRayDirection, rayLength, forwardHitPoint)) {
-           // Sphere* newSphere = new Sphere(grid,{ forwardHitPoint.x(), forwardHitPoint.y() + 30, forwardHitPoint.z()},0.5f,12);
-           // spheres.push_back(newSphere);
+            // Sphere* newSphere = new Sphere(grid,{ forwardHitPoint.x(), forwardHitPoint.y() + 30, forwardHitPoint.z()},0.5f,12);
+            // spheres.push_back(newSphere);
         }
 
         rayOrigin = backwardRayEnd;
         QVector3D backwardHitPoint;
         if (grid->intersectsRay(rayOrigin, backwardRayDirection, rayLength, backwardHitPoint)) {
-           // Sphere* newSphere = new Sphere(grid,{ backwardHitPoint.x(), backwardHitPoint.y() + 30, backwardHitPoint.z()},0.5f,12);
-           // spheres.push_back(newSphere);
+            // Sphere* newSphere = new Sphere(grid,{ backwardHitPoint.x(), backwardHitPoint.y() + 30, backwardHitPoint.z()},0.5f,12);
+            // spheres.push_back(newSphere);
         }
 
         rayEnd = forwardRayEnd;
@@ -549,7 +550,7 @@ void GLWidget::keyPressEvent(QKeyEvent *event) {
     if (event->key() == Qt::Key_P) {
         Sphere* newSphere = new Sphere(grid,{ float(100), 50, float(100)},0.5f,12);
         spheres.push_back(newSphere);
-            
+
     }
 
     if (event->key() == Qt::Key_Control) {
