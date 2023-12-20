@@ -267,14 +267,6 @@ void GLWidget::initializeGL()
         return;
     }
 
-    // Get the primary screen
-    QScreen *screen = QApplication::primaryScreen();
-    QRect screenGeometry = screen->geometry();
-    QPoint centerPoint = screenGeometry.center();
-
-
-    setCursor(Qt::BlankCursor);
-    QCursor::setPos(centerPoint);
 
 }
 
@@ -551,23 +543,6 @@ void GLWidget::keyPressEvent(QKeyEvent *event) {
         Sphere* newSphere = new Sphere(grid,{ float(100), 50, float(100)},0.5f,12);
         spheres.push_back(newSphere);
 
-    }
-
-    if (event->key() == Qt::Key_Control) {
-        // Get the primary screen
-        QScreen *screen = QApplication::primaryScreen();
-        QRect screenGeometry = screen->geometry();
-        QPoint centerPoint = screenGeometry.center();
-
-        if (cursor().shape() == Qt::BlankCursor) {
-            setCursor(Qt::ArrowCursor);  // Show cursor
-            // Unlock the cursor (allow it to move freely)
-            QCursor::setPos(mapToGlobal(geometry().center())); // Move cursor back to the center of the widget
-        } else {
-            setCursor(Qt::BlankCursor);  // Hide cursor
-            // Lock the cursor in the center of the screen
-            QCursor::setPos(centerPoint);
-        }
     }
 
     camera->ProcessKeyboard(event->key() ,1.0f);
