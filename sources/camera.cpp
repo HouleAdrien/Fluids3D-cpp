@@ -51,3 +51,8 @@ void Camera::updateCameraVectors() {
     Right = QVector3D::crossProduct(Front, WorldUp).normalized();
     Up = QVector3D::crossProduct(Right, Front).normalized();
 }
+
+void Camera::InvertPitch() {
+    Pitch = -Pitch;
+    updateCameraVectors();
+}

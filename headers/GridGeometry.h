@@ -31,10 +31,11 @@ public:
     bool intersectsRay(const QVector3D &rayOrigin, const QVector3D &rayDirection, float rayLength, QVector3D &intersectionPoint);
     QImage heightMapTexture;
     float maxHeight = 30;
+
+    int gridWidth , gridDepth ;
 private:
     QOpenGLBuffer arrayBuf;
     QOpenGLBuffer indexBuf;
-    int gridWidth , gridDepth ;
 
 
     QOpenGLTexture* gTextureHeight0;   // Texture for height range 0

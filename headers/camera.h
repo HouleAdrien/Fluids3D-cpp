@@ -16,7 +16,8 @@ public:
     void ProcessKeyboard(int key, float deltaTime);
     void ProcessMouseMovement(float xoffset, float yoffset, bool constrainPitch = true);
 
-
+    void InvertPitch();
+    void updateCameraVectors();
     QVector3D Front;
     QVector3D Up;
     QVector3D Right;
@@ -28,7 +29,6 @@ private:
     float MovementSpeed;
     float MouseSensitivity;
 
-    void updateCameraVectors();
 };
 
 #endif // CAMERA_H

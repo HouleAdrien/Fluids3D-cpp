@@ -9,51 +9,52 @@
 #include <QApplication>
 #include <QScreen>
 
-
 float skyboxVertices[] = {
     // Positions
-    -500.0f,  500.0f, -500.0f,
-    -500.0f, -500.0f, -500.0f,
-    500.0f, -500.0f, -500.0f,
-    500.0f, -500.0f, -500.0f,
-    500.0f,  500.0f, -500.0f,
-    -500.0f,  500.0f, -500.0f,
+    -250.0f,  250.0f, -250.0f,
+    -250.0f, -250.0f, -250.0f,
+    250.0f, -250.0f, -250.0f,
+    250.0f, -250.0f, -250.0f,
+    250.0f,  250.0f, -250.0f,
+    -250.0f,  250.0f, -250.0f,
 
-    -500.0f, -500.0f,  500.0f,
-    -500.0f, -500.0f, -500.0f,
-    -500.0f,  500.0f, -500.0f,
-    -500.0f,  500.0f, -500.0f,
-    -500.0f,  500.0f,  500.0f,
-    -500.0f, -500.0f,  500.0f,
+    -250.0f, -250.0f,  250.0f,
+    -250.0f, -250.0f, -250.0f,
+    -250.0f,  250.0f, -250.0f,
+    -250.0f,  250.0f, -250.0f,
+    -250.0f,  250.0f,  250.0f,
+    -250.0f, -250.0f,  250.0f,
 
-    500.0f, -500.0f, -500.0f,
-    500.0f, -500.0f,  500.0f,
-    500.0f,  500.0f,  500.0f,
-    500.0f,  500.0f,  500.0f,
-    500.0f,  500.0f, -500.0f,
-    500.0f, -500.0f, -500.0f,
+    250.0f, -250.0f, -250.0f,
+    250.0f, -250.0f,  250.0f,
+    250.0f,  250.0f,  250.0f,
+    250.0f,  250.0f,  250.0f,
+    250.0f,  250.0f, -250.0f,
+    250.0f, -250.0f, -250.0f,
 
-    -500.0f, -500.0f,  500.0f,
-    -500.0f,  500.0f,  500.0f,
-    500.0f,  500.0f,  500.0f,
-    500.0f,  500.0f,  500.0f,
-    500.0f, -500.0f,  500.0f,
-    -500.0f, -500.0f,  500.0f,
+    -250.0f, -250.0f,  250.0f,
+    -250.0f,  250.0f,  250.0f,
+    250.0f,  250.0f,  250.0f,
+    250.0f,  250.0f,  250.0f,
+    250.0f, -250.0f,  250.0f,
+    -250.0f, -250.0f,  250.0f,
 
-    -500.0f,  500.0f, -500.0f,
-    500.0f,  500.0f, -500.0f,
-    500.0f,  500.0f,  500.0f,
-    500.0f,  500.0f,  500.0f,
-    -500.0f,  500.0f,  500.0f,
-    -500.0f,  500.0f, -500.0f,
+    -250.0f,  250.0f, -250.0f,
+    250.0f,  250.0f, -250.0f,
+    250.0f,  250.0f,  250.0f,
+    250.0f,  250.0f,  250.0f,
+    -250.0f,  250.0f,  250.0f,
+    -250.0f,  250.0f, -250.0f,
 
-    -500.0f, -500.0f, -500.0f,
-    -500.0f, -500.0f,  500.0f,
-    500.0f, -500.0f, -500.0f,
-    500.0f, -500.0f, -500.0f,
-    -500.0f, -500.0f,  500.0f,
-    500.0f, -500.0f,  500.0f
+    -250.0f, -250.0f, -250.0f,
+    -250.0f, -250.0f,  250.0f,
+    250.0f, -250.0f,  250.0f,
+    250.0f, -250.0f,  250.0f,
+    250.0f, -250.0f, -250.0f,
+    -250.0f, -250.0f, -250.0f
+
 };
+
 
 
 // Initialize geometry for the sun (quad)
@@ -85,13 +86,11 @@ GLWidget::GLWidget(QWidget *parent)
     QSurfaceFormat format;
     format.setDepthBufferSize(24);
     format.setStencilBufferSize(8);
+    format.setSamples(16);
     format.setAlphaBufferSize(8);
     format.setVersion(4, 0);
     format.setProfile(QSurfaceFormat::CoreProfile);
     QSurfaceFormat::setDefaultFormat(format);
-
-
-
     setFocusPolicy(Qt::StrongFocus);
     setMouseTracking(true);
 }
@@ -115,6 +114,8 @@ QSize GLWidget::sizeHint() const
 void GLWidget::cleanup()
 {
     makeCurrent();
+    waterFrameBuffers->cleanUp();
+    delete waterFrameBuffers;
     delete swefluid;
     delete m_program;
     delete grid_program;
@@ -137,7 +138,7 @@ void GLWidget::initializeGL()
 
     initializeOpenGLFunctions();
     glClearColor(0, 0, 0, m_transparent ? 0 : 1);
-
+    glEnable(GL_CLIP_DISTANCE0);
     //FLUID
     m_program = new QOpenGLShaderProgram;
     if (!m_program->addShaderFromSourceFile(QOpenGLShader::Vertex, ":/vshader.glsl"))
@@ -146,7 +147,7 @@ void GLWidget::initializeGL()
         close();
 
     // Define the sun's position
-    QVector3D sunPosition = QVector3D(50, 100, 50);
+    QVector3D sunPosition = QVector3D(100, 200, 100);
 
 
     if (!m_program->link())
@@ -157,6 +158,10 @@ void GLWidget::initializeGL()
     m_mvp_matrix_loc = m_program->uniformLocation("mvp_matrix");
     m_normal_matrix_loc = m_program->uniformLocation("normal_matrix");
     m_light_pos_loc = m_program->uniformLocation("light_position");
+    reflect_texture_loc = m_program->uniformLocation("reflectionTexture");
+    refract_texture_loc = m_program->uniformLocation("refractionTexture");
+    m_program->setUniformValue(reflect_texture_loc,0);
+    m_program->setUniformValue(refract_texture_loc,1);
 
     // Set the light position to the sun's position
     m_program->setUniformValue(m_light_pos_loc, sunPosition);
@@ -180,7 +185,7 @@ void GLWidget::initializeGL()
     grid_mvp_matrix_loc = grid_program->uniformLocation("mvp_matrix");
     grid_normal_matrix_loc = grid_program->uniformLocation("normal_matrix");
     grid_light_pos_loc = grid_program->uniformLocation("light_position");
-
+    grid_plane_loc = grid_program->uniformLocation("plane");
     // Set the light position to the sun's position
     grid_program->setUniformValue(grid_light_pos_loc, sunPosition);
 
@@ -188,16 +193,12 @@ void GLWidget::initializeGL()
 
     grid = new GridGeometry(200,200);
 
-    swefluid = new SWEFluid(200, 200);
+    swefluid = new SWEFluid(grid,12);
 
     camera= new Camera({100,20,100});
     m_view =  camera->GetViewMatrix();
 
-    // Skybox Shader Program
-    m_skyboxProgram = new QOpenGLShaderProgram;
-    m_skyboxProgram->addShaderFromSourceFile(QOpenGLShader::Vertex, ":/skybox_vshader.glsl");
-    m_skyboxProgram->addShaderFromSourceFile(QOpenGLShader::Fragment, ":/skybox_fshader.glsl");
-    m_skyboxProgram->link();
+    initializeSkybox();
 
     m_sphereProgram = new QOpenGLShaderProgram;
     m_sphereProgram->addShaderFromSourceFile(QOpenGLShader::Vertex, ":/sphere_vshader.glsl");
@@ -212,11 +213,9 @@ void GLWidget::initializeGL()
     sphere_mvp_matrix_loc = m_sphereProgram->uniformLocation("mvp_matrix");
     sphere_normal_matrix_loc = m_sphereProgram->uniformLocation("normal_matrix");
     sphere_light_pos_loc = m_sphereProgram->uniformLocation("light_position");
-
+    sphere_plane_loc = m_sphereProgram->uniformLocation("plane");
     // Set the light position to the sun's position
     m_sphereProgram->setUniformValue(sphere_light_pos_loc, sunPosition);
-
-
 
 
     m_sphereProgram->release();
@@ -233,19 +232,7 @@ void GLWidget::initializeGL()
     sunVBO.create();
     sunVBO.bind();
     sunVBO.allocate(sunVertices, sizeof(sunVertices));
-    // Setup vertex attribute pointers for sun
     sunVAO.release();
-
-    // Skybox geometry setup
-    skyboxVAO.create();
-    skyboxVAO.bind();
-    skyboxVBO.create();
-    skyboxVBO.bind();
-    skyboxVBO.allocate(skyboxVertices, sizeof(skyboxVertices));
-    glEnableVertexAttribArray(0);
-    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void*)0);
-    skyboxVAO.release();
-
 
     rayProgram = new QOpenGLShaderProgram(this);
 
@@ -267,14 +254,143 @@ void GLWidget::initializeGL()
         return;
     }
 
+    waterFrameBuffers = new WaterFrameBuffers();
+    waterFrameBuffers->initialize();
+    
+}
 
+void GLWidget::initializeSkybox()
+{
+    // Skybox Shader Program
+    m_skyboxProgram = new QOpenGLShaderProgram;
+    if (!m_skyboxProgram->addShaderFromSourceFile(QOpenGLShader::Vertex, ":/skybox_vshader.glsl"))
+        close();
+    if (!m_skyboxProgram->addShaderFromSourceFile(QOpenGLShader::Fragment, ":/skybox_fshader.glsl"))
+        close();
+    if (!m_skyboxProgram->link())
+        close();
+
+    // Noms des fichiers pour chaque face de la cubemap
+    QStringList faceFilenames = {
+        ":/Images/right.png",   // Face 1: Right
+        ":/Images/left.png",    // Face 2: Left
+        ":/Images/top.png",     // Face 3: Top
+        ":/Images/bottom.png",  // Face 4: Bottom
+        ":/Images/front.png",   // Face 5: Front
+        ":/Images/back.png"     // Face 6: Back
+    };
+
+    // Création de la texture cubemap
+    glGenTextures(1, &cubemapTexture);
+    glBindTexture(GL_TEXTURE_CUBE_MAP, cubemapTexture);
+
+    // Charger chaque face de la cubemap
+    for (int i = 0; i < faceFilenames.size(); ++i) {
+        QImage faceImage(faceFilenames[i]);
+        if (faceImage.isNull()) {
+            qDebug() << "Failed to load cubemap face image:" << faceFilenames[i];
+            return;
+        }
+
+        // Convertir l'image en format OpenGL approprié si nécessaire
+        QImage glFormatImage = faceImage.convertToFormat(QImage::Format_RGB888);
+
+        // Charger l'image dans la texture cubemap
+        glTexImage2D(
+            GL_TEXTURE_CUBE_MAP_POSITIVE_X + i,
+            0, GL_RGB, glFormatImage.width(), glFormatImage.height(), 0,
+            GL_RGB, GL_UNSIGNED_BYTE, glFormatImage.bits()
+            );
+    }
+
+    glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_R, GL_CLAMP_TO_EDGE);
+
+    m_skyboxProgram->bind();
+    glUniform1i(glGetUniformLocation(m_skyboxProgram->programId(), "skybox"), 0);
+    m_skyboxProgram->release();
+
+    // Skybox geometry setup
+    skyboxVAO.create();
+    skyboxVAO.bind();
+    skyboxVBO.create();
+    skyboxVBO.bind();
+    skyboxVBO.allocate(skyboxVertices, sizeof(skyboxVertices));
+    glEnableVertexAttribArray(0);
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void*)0);
+    skyboxVAO.release();
 }
 
 
 
-void GLWidget::paintGL()
-{
-    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+void GLWidget::paintGL() {
+
+    waterFrameBuffers->bindReflectionFrameBuffer();
+    float distance = 2 * (camera->Position.y() - swefluid->BaseWaterHeight);
+    camera->Position = {camera->Position.x(),camera->Position.y() - distance,camera->Position.z()};
+    camera->InvertPitch();
+    m_view = camera->GetViewMatrix();
+
+    RenderScene(false,{0,1,0,-static_cast<float>(swefluid->BaseWaterHeight)});
+
+    camera->Position = {camera->Position.x(),camera->Position.y() + distance,camera->Position.z()};
+    camera->InvertPitch();
+    m_view = camera->GetViewMatrix();
+
+    emitReflectionTexture();
+
+    waterFrameBuffers->bindRefractionFrameBuffer();
+    RenderScene(false,{0,-1,0,static_cast<float>(swefluid->BaseWaterHeight)});
+    emitRefractionTexture();
+
+    waterFrameBuffers->unbindCurrentFrameBuffer();
+
+
+    // 2. Render the main scene
+    QSize viewportSize = this->size();
+    glViewport(0, 0, viewportSize.width(), viewportSize.height());
+    RenderScene(true,{0,-1,0,10000});
+}
+
+
+void GLWidget::emitReflectionTexture() {
+    QSize textureSize(waterFrameBuffers->REFLECTION_WIDTH, waterFrameBuffers->REFLECTION_HEIGHT);
+
+    // Bind the reflection framebuffer for reading
+    glBindFramebuffer(GL_READ_FRAMEBUFFER, waterFrameBuffers->getReflectionFrameBuffer());
+    glReadBuffer(GL_COLOR_ATTACHMENT0);
+
+    // Create an image with the appropriate format
+    QImage image(textureSize, QImage::Format_RGB888);
+
+    // Read pixels directly into the QImage's buffer
+    glReadPixels(0, 0, textureSize.width(), textureSize.height(), GL_RGB, GL_UNSIGNED_BYTE, image.bits());
+
+    // Unbind the framebuffer
+    glBindFramebuffer(GL_READ_FRAMEBUFFER, 0);
+
+    // Emit the signal with the image
+    emit reflectionTextureUpdated(image); // Use mirrored() if the image is flipped
+}
+
+void GLWidget::emitRefractionTexture(){
+    QSize textureSize(waterFrameBuffers->REFRACTION_WIDTH, waterFrameBuffers->REFRACTION_HEIGHT);
+    glBindFramebuffer(GL_READ_FRAMEBUFFER, waterFrameBuffers->getRefractionFrameBuffer());
+    glReadBuffer(GL_COLOR_ATTACHMENT0);
+    QImage image(textureSize, QImage::Format_RGB888);
+    glReadPixels(0, 0, textureSize.width(), textureSize.height(), GL_RGB, GL_UNSIGNED_BYTE, image.bits());
+    glBindFramebuffer(GL_READ_FRAMEBUFFER, 0);
+    emit refractionTextureUpdated(image);
+}
+
+
+
+void GLWidget::RenderScene(bool withWater,QVector4D clippingPlane){
+  glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
     glEnable(GL_DEPTH_TEST);
     glEnable(GL_BLEND);
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
@@ -286,18 +402,25 @@ void GLWidget::paintGL()
     m_model.rotate(180 / 16.0f, 0, 1, 0);
     m_model.rotate(0 / 16.0f, 0, 0, 1);
 
-    m_program->bind();
+    if(withWater){
+        m_program->bind();
 
-    // Mise à jour de la matrice MVP (Model-View-Projection)
-    m_program->setUniformValue(m_mvp_matrix_loc, m_projection * m_view * m_model);
-    QMatrix3x3 normal_matrix = m_model.normalMatrix();
-    m_program->setUniformValue(m_normal_matrix_loc, normal_matrix);
+        // Mise à jour de la matrice MVP (Model-View-Projection)
+        m_program->setUniformValue(m_mvp_matrix_loc, m_projection * m_view * m_model);
+        QMatrix3x3 normal_matrix = m_model.normalMatrix();
+        m_program->setUniformValue(m_normal_matrix_loc, normal_matrix);
 
-    // Dessin de la grille
-    swefluid->drawGridGeometry(m_program);
+        glActiveTexture(GL_TEXTURE0);
+        glBindTexture(GL_TEXTURE_2D ,waterFrameBuffers->getReflectionTexture());
 
-    m_program->release();
+        glActiveTexture(GL_TEXTURE1);
+        glBindTexture(GL_TEXTURE_2D , waterFrameBuffers->getRefractionTexture());
 
+        // Dessin de la grille
+        swefluid->drawGridGeometry(m_program);
+
+        m_program->release();
+    }
     updateSimulation();
 
     //render grid
@@ -307,7 +430,7 @@ void GLWidget::paintGL()
     grid_program->setUniformValue(grid_mvp_matrix_loc, m_projection * m_view * m_model);
     QMatrix3x3 grid_normal_matrix = m_model.normalMatrix();
     grid_program->setUniformValue(grid_normal_matrix_loc, grid_normal_matrix);
-
+    grid_program->setUniformValue(grid_plane_loc,clippingPlane);
     // Dessin de la grille
     grid->drawGridGeometry(grid_program);
 
@@ -319,17 +442,13 @@ void GLWidget::paintGL()
     m_sphereProgram->setUniformValue(sphere_mvp_matrix_loc, m_projection * m_view * m_model);
     QMatrix3x3 sphere_normal_matrix = m_model.normalMatrix();
     m_sphereProgram->setUniformValue(sphere_normal_matrix_loc, sphere_normal_matrix);
-
-    for(int i = 0; i < spheres.size() ; i++){
-
-        spheres[i]->UpdateParticles(0.03f);
-        spheres[i]->render(m_sphereProgram);
-
-
-    }
+    m_sphereProgram->setUniformValue(sphere_plane_loc,clippingPlane);
+    updateSpheres(0.03f);
     m_sphereProgram->release();
 
-
+    glDepthMask(GL_FALSE); // Disable writing to the depth buffer
+    glActiveTexture(GL_TEXTURE0);
+    glBindTexture(GL_TEXTURE_CUBE_MAP, cubemapTexture);
     // Render Skybox
     m_skyboxProgram->bind();
     skyboxVAO.bind();
@@ -340,16 +459,16 @@ void GLWidget::paintGL()
     glDrawArrays(GL_TRIANGLES, 0, sizeof(skyboxVertices) / (3 * sizeof(float))); // Using the size of skyboxVertices array
     skyboxVAO.release();
     m_skyboxProgram->release();
+    glBindTexture(GL_TEXTURE_CUBE_MAP, 0);
+    glDepthMask(GL_TRUE);
 
     // Render Sun
     m_sunProgram->bind();
     sunVAO.bind();
-    QMatrix4x4 modelMatrixSun;
-    modelMatrixSun.translate(50, 10, 50);
-    modelMatrixSun.scale(5);
-    QMatrix4x4 mvpMatrixSun = m_projection * m_view * modelMatrixSun;
+    QMatrix4x4 mvpMatrixSun = m_projection * m_view;
     m_sunProgram->setUniformValue("mvp_matrix", mvpMatrixSun);
-    QVector3D sunColor(1.0, 1.0, 0.8); // Soft yellow-white
+    QVector3D sunColor(1.5, 1.5, 1.2); // Intense yellow-white
+
     m_sunProgram->setUniformValue("lightColor", sunColor);
     glDrawArrays(GL_TRIANGLES, 0, sizeof(sunVertices) / (3 * sizeof(float))); // Using the size of sunVertices array
     sunVAO.release();
@@ -392,12 +511,73 @@ void GLWidget::paintGL()
     }
 
     update();
+} 
 
+
+void GLWidget::updateSpheres(float dt) {
+    for (Sphere* sphere : spheres) {
+        sphere->UpdateParticles(dt);
+    }
+
+    resolveSphereCollisions();
+
+    for (Sphere* sphere : spheres) {
+        sphere->render(m_sphereProgram);
+    }
 }
+
+void GLWidget::resolveSphereCollisions() {
+    const float radius = 0.5f;
+    const float diameter = radius * 2.0f;
+
+    // Assuming gridWidth and gridDepth are accessible here
+    float maxX = grid->gridWidth - radius;
+    float maxZ = grid->gridDepth - radius;
+    float minX = 0 + radius;
+    float minZ = 0 + radius;
+
+    for (int i = 0; i < spheres.size(); ++i) {
+        for (int j = i + 1; j < spheres.size(); ++j) {
+            QVector3D& pos1 = spheres[i]->vertices[0].position;
+            QVector3D& pos2 = spheres[j]->vertices[0].position;
+
+            QVector3D delta = pos2 - pos1;
+            float distance = delta.length();
+
+            if (distance < diameter) {
+                QVector3D midpoint = (pos1 + pos2) * 0.5f;
+                QVector3D direction = delta.normalized();
+
+                QVector3D iNewPos = midpoint - direction * radius;
+                QVector3D jNewPos = midpoint + direction * radius;
+
+                // Boundary check for iNewPos
+                iNewPos.setX(qMax(minX, qMin(iNewPos.x(), maxX)));
+                iNewPos.setZ(qMax(minZ, qMin(iNewPos.z(), maxZ)));
+
+                // Boundary check for jNewPos
+                jNewPos.setX(qMax(minX, qMin(jNewPos.x(), maxX)));
+                jNewPos.setZ(qMax(minZ, qMin(jNewPos.z(), maxZ)));
+
+                spheres[i]->vertices[0].position = iNewPos;
+                spheres[j]->vertices[0].position = jNewPos;
+
+                // Update all vertices of the moved spheres
+                for(int k = 1; k < spheres[i]->vertices.size(); k++) {
+                    spheres[i]->vertices[k].position = iNewPos + spheres[i]->vertices[k].offset;
+                }
+                for(int k = 1; k < spheres[j]->vertices.size(); k++) {
+                    spheres[j]->vertices[k].position = jNewPos + spheres[j]->vertices[k].offset;
+                }
+            }
+        }
+    }
+}
+
 
 void GLWidget::updateSimulation() {
 
-    swefluid->ShallowWaterStep(0.0001f);
+    swefluid->ShallowWaterStep(0.001f);
     swefluid->updateVertexBuffer();
 
     update(); // Request to redraw the widget
@@ -511,36 +691,14 @@ void GLWidget::mouseMoveEvent(QMouseEvent *event) {
 
 
 void GLWidget::keyPressEvent(QKeyEvent *event) {
-    if (event->key() == Qt::Key_T) {
-        srand(time(NULL));
-
-        int numberOfCircles = 5;
-        int borderThickness = 1;
-
-        for (int i = 0; i < numberOfCircles; ++i) {
-            int centerX = rand() % 150+20;
-            int centerY = rand() % 150+20;
-            int diameter = 10;
-            int radius = diameter / 2;
-
-            for (int x = centerX - radius; x <= centerX + radius; ++x) {
-                for (int y = centerY - radius; y <= centerY + radius; ++y) {
-                    int dx = x - centerX;
-                    int dy = y - centerY;
-                    int distanceSquared = dx * dx + dy * dy;
-                    if (distanceSquared <= radius * radius && distanceSquared >= (radius - borderThickness) * (radius - borderThickness)) {
-                        swefluid->setWaterHeightAt(x, y, 10);  // Set height to 10
-                    }
-                }
-            }
-        }
-
+    if (event->key() == Qt::Key_T) {  
+        swefluid->CreateInitialWave(Border::East);
         swefluid->updateVertexBuffer();
         //   update();
     }
 
     if (event->key() == Qt::Key_P) {
-        Sphere* newSphere = new Sphere(grid,{ float(100), 50, float(100)},0.5f,12);
+        Sphere* newSphere = new Sphere(grid,{ float(100), 50, float(100)},0.5f,12,swefluid);
         spheres.push_back(newSphere);
 
     }

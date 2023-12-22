@@ -11,6 +11,7 @@
 #include "GridGeometry.h"
 #include "sphere.h"
 #include "camera.h"
+#include "WaterFrameBuffers.h"
 
 QT_FORWARD_DECLARE_CLASS(QOpenGLShaderProgram)
 
@@ -32,9 +33,14 @@ public:
     void setFoV(float fov);
 
 
+signals:
+    void reflectionTextureUpdated(const QImage &image);
+    void refractionTextureUpdated(const QImage &image);
+
 public slots:
     void cleanup();
     void updateSimulation();
+
 
 protected:
     void initializeGL() override;
@@ -49,6 +55,12 @@ private:
     void setupVertexAttribs();
     void updateProjectionMatrix();
     void renderTestPoint(const QVector3D& point);
+    void updateSpheres(float dt);
+    void resolveSphereCollisions();
+    void initializeSkybox();
+    void RenderScene(bool withWater,QVector4D clippingPlane);
+    void emitReflectionTexture();
+    void emitRefractionTexture();
 
     float m_currentFoV;
     bool m_core;
@@ -63,16 +75,18 @@ private:
     int m_mvp_matrix_loc;
     int m_normal_matrix_loc;
     int m_light_pos_loc;
-
+    int reflect_texture_loc;
+    int refract_texture_loc;
 
     int grid_mvp_matrix_loc;
     int grid_normal_matrix_loc;
     int grid_light_pos_loc;
+    int grid_plane_loc;
 
     int sphere_mvp_matrix_loc;
     int sphere_normal_matrix_loc;
     int sphere_light_pos_loc;
-
+    int sphere_plane_loc;
 
     QMatrix4x4 m_projection;
     QMatrix4x4 m_view;
@@ -82,6 +96,7 @@ private:
     static bool m_transparent;
 
     SWEFluid* swefluid = nullptr;
+    WaterFrameBuffers* waterFrameBuffers = nullptr;
 
 
     QOpenGLVertexArrayObject sunVAO;
@@ -89,6 +104,7 @@ private:
 
     QOpenGLVertexArrayObject skyboxVAO;
     QOpenGLBuffer skyboxVBO;
+    GLuint cubemapTexture;
 
     QVector3D sunPosition;
 

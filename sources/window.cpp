@@ -16,6 +16,17 @@ Window::Window(MainWindow *mw)
 
     QVBoxLayout *mainLayout = new QVBoxLayout;
     QHBoxLayout *container = new QHBoxLayout;
+
+    imageLabel = new QLabel;
+    imageLabel->setPixmap(QPixmap(":/images/test4.png"));
+    imageLabel->setMinimumSize(200, 200);
+    container->addWidget(imageLabel);
+
+    imageLabel2 = new QLabel;
+    imageLabel2->setPixmap(QPixmap(":/images/test4.png"));
+    imageLabel2->setMinimumSize(200, 200);
+    container->addWidget(imageLabel2);
+
     container->addWidget(glWidget);
 
     // Add the button and connect its click signal to the uploadImage slot
@@ -27,8 +38,9 @@ Window::Window(MainWindow *mw)
     w->setLayout(container);
     mainLayout->addWidget(w);
 
+    connect(glWidget, &GLWidget::reflectionTextureUpdated, this, &Window::updateImageDisplay);
 
-
+    connect(glWidget, &GLWidget::refractionTextureUpdated, this, &Window::updateImageDisplay2);
     setLayout(mainLayout);
     setWindowTitle(tr("Qt OpenGL"));
 }
@@ -49,5 +61,12 @@ void Window::uploadImage() {
 
     }
 
+}
 
+void Window::updateImageDisplay(const QImage &image) {
+    imageLabel->setPixmap(QPixmap::fromImage(image));
+}
+
+void Window::updateImageDisplay2(const QImage &image) {
+    imageLabel2->setPixmap(QPixmap::fromImage(image));
 }

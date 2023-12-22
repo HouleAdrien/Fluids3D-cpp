@@ -6,6 +6,7 @@
 #include <QOpenGLBuffer>
 #include <QVector3D>
 #include <QVector2D>
+#include "GridGeometry.h"
 #include <vector>
 #include <QElapsedTimer>
 
@@ -17,24 +18,35 @@ struct VertexData {
     QVector2D velocity; // 2D velocity vector (vx, vz)
     float groundHeight; // Height of the ground
     float fluidHeight;  // Height of the fluid
-    bool isFluid;
+    float isBorder; // Is the point of fluid a border
 };
+
+enum class Border {
+    South,
+    East,
+    West,
+    North
+};
+
 
 class SWEFluid : protected QOpenGLFunctions {
 public:
-    SWEFluid(int gridWidth,int gridDepth);
+    SWEFluid(GridGeometry* _grid,int _BaseWaterHeight);
     ~SWEFluid();
 
     int gridWidth, gridDepth;
-    void setWaterHeightAt(int x, int y, double height) ;
+    int BaseWaterHeight;
     void initGridGeometry();
     void drawGridGeometry(QOpenGLShaderProgram* program);
     void ShallowWaterStep( float dt);
     void updateVertexBuffer();
+    float getWaterHeight(float x, float z);
+    void CreateInitialWave(Border border);
 
-    float Dx, Dy;
-
+    GridGeometry* grid;
 private:
+    void SpreadBorderToGround();
+    std::vector<std::vector<int>> vertexIndexMap;
     void Advect(std::vector<VertexData>& deplacement, const std::vector<VertexData>& source, float dt );
     void Update_height( float dt);
     void Update_velocities( float dt);
@@ -43,6 +55,8 @@ private:
     QOpenGLBuffer arrayBuf;
     QOpenGLBuffer indexBuf;
     std::vector<VertexData> vertices;
+    std::vector<VertexData> globalGridInfos;
+
     float gravity=-9.81f;
 };
 

@@ -1,12 +1,17 @@
 <RCC>
     <qresource prefix="/">
-        <file>Images/iceland_heightmap.png</file>
-        <file>Images/31.png</file>
         <file>Images/Untitled.jpeg</file>
-        <file>Images/heightmap.png</file>
         <file>Images/grass.jpg</file>
         <file>Images/rock.png</file>
         <file>Images/rockGrass.jpeg</file>
         <file>Images/snow.jpg</file>
+        <file>Images/test4.png</file>
+        <file>Images/test5.jpg</file>
+        <file>Images/back.png</file>
+        <file>Images/bottom.png</file>
+        <file>Images/front.png</file>
+        <file>Images/left.png</file>
+        <file>Images/right.png</file>
+        <file>Images/top.png</file>
     </qresource>
 </RCC>

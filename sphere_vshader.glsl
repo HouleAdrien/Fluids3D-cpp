@@ -11,6 +11,8 @@ out vec3 fragPosition; // Pass the world-space position to the fragment shader
 uniform mat4 mvp_matrix;     // Model-View-Projection matrix
 uniform mat3 normal_matrix;  // Normal matrix for transforming normals
 
+uniform vec4 plane;
+
 void main() {
     fragTexCoord = texCoord;
 
@@ -20,4 +22,5 @@ void main() {
     fragPosition = vertex.xyz ;
 
     gl_Position = mvp_matrix * vertex;
+    gl_ClipDistance[0] = dot(vertex,plane);
 }

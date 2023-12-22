@@ -2,7 +2,7 @@
 #define WINDOW_H
 
 #include <QWidget>
-
+#include <QLabel>
 QT_BEGIN_NAMESPACE
 class QSlider;
 class QPushButton;
@@ -21,8 +21,13 @@ public:
 
 private slots:
     void uploadImage();
+    void updateImageDisplay(const QImage &image);
+    void updateImageDisplay2(const QImage &image);
 
 private:
+    QLabel *imageLabel;
+    QLabel *imageLabel2;
+
     GLWidget *glWidget;
     MainWindow *mainWindow;
     QPushButton *uploadButton;

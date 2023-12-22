@@ -4,13 +4,12 @@
 #include <QOpenGLVertexArrayObject>
 #include <vector>
 
-SWEFluid::SWEFluid(int _gridWidth, int _gridDepth) : indexBuf(QOpenGLBuffer::IndexBuffer) {
+SWEFluid::SWEFluid(GridGeometry* _grid,int _BaseWaterHeight) : indexBuf(QOpenGLBuffer::IndexBuffer) {
     initializeOpenGLFunctions();
-    gridDepth = _gridDepth;
-    gridWidth = _gridWidth;
-    Dx =  _gridWidth;
-    Dy = _gridDepth;
-
+    grid = _grid;
+    gridDepth = grid->gridDepth;
+    gridWidth = grid->gridWidth;
+    BaseWaterHeight =_BaseWaterHeight;
     arrayBuf.create();
     indexBuf.create();
 
@@ -21,36 +20,76 @@ SWEFluid::~SWEFluid() {
     arrayBuf.destroy();
     indexBuf.destroy();
 }
-
 void SWEFluid::initGridGeometry() {
     QVector3D normal(0.0f, 1.0f, 0.0f); // Normal pointing upwards
 
+
+    std::vector<GLushort> indices;
+    vertexIndexMap = std::vector<std::vector<int>>(gridWidth, std::vector<int>(gridDepth, -1));
+    int vertexCounter = 0;
+
     for (int x = 0; x < gridWidth; ++x) {
         for (int z = 0; z < gridDepth; ++z) {
-            VertexData vertex;
-            vertex.position = QVector3D(x, 0.0f, z);
-            vertex.normal = normal;
-            vertex.waterHeight = 0;
-            vertex.velocity = QVector2D(0, 0); // 2D velocity (vx, vz)
-            vertex.groundHeight = 0;
-            vertex.fluidHeight = 0;
+            float terrainHeight = grid->getHeightAtPosition(x, z);
+            if (terrainHeight <= BaseWaterHeight) {
+                VertexData vertex;
+                vertex.position = QVector3D(x, terrainHeight, z);
+                vertex.normal = normal;
+                vertex.waterHeight =  BaseWaterHeight - terrainHeight;
+                vertex.velocity = QVector2D(0, 0); // 2D velocity (vx, vz)
+                vertex.groundHeight = terrainHeight;
+                vertex.fluidHeight = vertex.waterHeight+ vertex.groundHeight;
+                vertex.texCoord = QVector2D(static_cast<float>(x) / gridWidth, static_cast<float>(z) / gridDepth);
+                vertex.isBorder = false;
+                if (x > 0 && grid->getHeightAtPosition(x - 1, z) > BaseWaterHeight) vertex.isBorder = true;
+                if (x < gridWidth - 1 && grid->getHeightAtPosition(x + 1, z) > BaseWaterHeight) vertex.isBorder = true;
+                if (z > 0 && grid->getHeightAtPosition(x, z - 1) > BaseWaterHeight) vertex.isBorder = true;
+                if (z < gridDepth - 1 && grid->getHeightAtPosition(x, z + 1) > BaseWaterHeight) vertex.isBorder = true;
 
-            vertices.push_back(vertex);
+                vertices.push_back(vertex);
+
+
+                vertexIndexMap[x][z] = vertexCounter++;
+            }
+                VertexData vertex;
+                vertex.normal = normal;
+                vertex.waterHeight =  BaseWaterHeight ;
+                vertex.velocity = QVector2D(0, 0); // 2D velocity (vx, vz)
+                vertex.groundHeight = 0;
+                vertex.isBorder=false;
+                vertex.fluidHeight = vertex.waterHeight+ vertex.groundHeight;
+                vertex.position = QVector3D(x, vertex.fluidHeight, z);
+                vertex.texCoord = QVector2D(static_cast<float>(x) / gridWidth, static_cast<float>(z) / gridDepth);
+                globalGridInfos.push_back(vertex);
+
         }
     }
 
-    std::vector<GLushort> indices;
-    for (int z = 0; z < gridDepth - 1; ++z) {
-        if (z > 0)
-            indices.push_back(z * gridWidth);
+    // Now create indices
+    for (int x = 0; x < gridWidth - 1; ++x) {
+        for (int z = 0; z < gridDepth - 1; ++z) {
+            // Get the indices of the four corners of the current grid cell
+            int topLeft = vertexIndexMap[x][z];
+            int topRight = vertexIndexMap[x + 1][z];
+            int bottomLeft = vertexIndexMap[x][z + 1];
+            int bottomRight = vertexIndexMap[x + 1][z + 1];
 
-        for (int x = 0; x < gridWidth; ++x) {
-            indices.push_back(z * gridWidth + x);
-            indices.push_back((z + 1) * gridWidth + x);
+            // Create two triangles if all four corners have vertices
+            if (topLeft != -1 && topRight != -1 && bottomLeft != -1 && bottomRight != -1) {
+                indices.push_back(topLeft);
+                indices.push_back(bottomLeft);
+                indices.push_back(topRight);
+
+                indices.push_back(topRight);
+                indices.push_back(bottomLeft);
+                indices.push_back(bottomRight);
+            }
         }
+    }
 
-        if (z < gridDepth - 2)
-            indices.push_back((z + 1) * gridWidth + (gridWidth - 1));
+
+    for (auto& vertex : vertices) {
+        vertex.position.setY(vertex.fluidHeight);
     }
 
     arrayBuf.bind();
@@ -58,6 +97,40 @@ void SWEFluid::initGridGeometry() {
 
     indexBuf.bind();
     indexBuf.allocate(indices.data(), static_cast<int>(indices.size()) * sizeof(GLushort));
+}
+
+void SWEFluid::SpreadBorderToGround() {
+    for (VertexData& vertex : vertices) {
+        if (vertex.isBorder) {
+            // Current terrain height at the vertex's position
+            float currentTerrainHeight = grid->getHeightAtPosition(vertex.position.x(), vertex.position.z());
+
+            // Check if the vertex is already at or below the terrain height
+            if (vertex.position.y() < currentTerrainHeight) {
+                // Calculate gradient in x and z directions
+                float heightX1 = grid->getHeightAtPosition(vertex.position.x() + 1, vertex.position.z());
+                float heightX2 = grid->getHeightAtPosition(vertex.position.x() - 1, vertex.position.z());
+                float gradientX = heightX1 - heightX2;
+
+                float heightZ1 = grid->getHeightAtPosition(vertex.position.x(), vertex.position.z() + 1);
+                float heightZ2 = grid->getHeightAtPosition(vertex.position.x(), vertex.position.z() - 1);
+                float gradientZ = heightZ1 - heightZ2;
+
+                // Determine the direction to move (towards increasing height)
+                QVector2D direction(gradientX, gradientZ);
+                direction.normalize();
+
+                // Move the vertex
+                float stepSize = 0.01; // Adjust this value as needed
+                vertex.position.setX(vertex.position.x() + direction.x() * stepSize);
+                vertex.position.setZ(vertex.position.z() + direction.y() * stepSize);
+
+                // Update the vertex's height to be at least the terrain height
+                vertex.position.setY(std::max(vertex.position.y(), grid->getHeightAtPosition(vertex.position.x(), vertex.position.z())));
+            }
+        }
+    }
+
 }
 
 
@@ -115,46 +188,60 @@ void SWEFluid::drawGridGeometry(QOpenGLShaderProgram* program) {
     program->setAttributeBuffer(fluidHeightLocation, GL_FLOAT, offset, 1, sizeof(VertexData));
 
     // Draw the geometry
-    glDrawElements(GL_TRIANGLE_STRIP, indexBuf.size() / sizeof(GLushort), GL_UNSIGNED_SHORT, nullptr);
+    glDrawElements(GL_TRIANGLES, indexBuf.size() / sizeof(GLushort), GL_UNSIGNED_SHORT, nullptr);
 
     arrayBuf.release();
     indexBuf.release();
 }
 
-
-
 void SWEFluid::ShallowWaterStep(float dt) {
-    std::vector<VertexData> tempVertices = vertices;
+    SpreadBorderToGround();
+    std::vector<VertexData> tempVertices = globalGridInfos;
 
-    // Étape 1: Advect pour la hauteur de l'eau
-    // Étape 2 et 3: Advect pour les vitesses
-    Advect(tempVertices, vertices, dt);
+    // Steps 1, 2, and 3: Advect for water height and velocities
+    Advect(tempVertices, globalGridInfos, dt);
 
-    // Étape 4, 5, et 6: Mise à jour des vitesses et de la hauteur de l'eau
-    for (size_t i = 0; i < vertices.size(); ++i) {
-        vertices[i].velocity = tempVertices[i].velocity;
-        vertices[i].waterHeight = tempVertices[i].waterHeight;
+    // Steps 4, 5, and 6: Update velocities and water height
+    for (size_t i = 0; i < globalGridInfos.size(); ++i) {
+        if (globalGridInfos[i].velocity.x() == 0 && globalGridInfos[i].velocity.y() == 0) {
+            // Maintain existing water height if velocity is zero
+            tempVertices[i].waterHeight = globalGridInfos[i].waterHeight;
+        }
+        globalGridInfos[i].velocity = tempVertices[i].velocity;
+        globalGridInfos[i].waterHeight = tempVertices[i].waterHeight;
     }
 
-    // Étape 7: Mise à jour de la hauteur
-   Update_height(dt);
+    // Step 7: Update height
+    Update_height(dt);
 
-    // Étape 8: Calcul de la hauteur totale du fluide
-    for (auto& vertex : vertices) {
+    // Step 8: Calculate total fluid height
+    for (auto& vertex : globalGridInfos) {
         vertex.fluidHeight = vertex.waterHeight + vertex.groundHeight;
     }
 
-    // Étape 9: Mise à jour des vitesses
+    // Step 9: Update velocities
     Update_velocities(dt);
 
-    for (auto& vertex : vertices) {
+    // Update position based on fluid height
+    for (auto& vertex : globalGridInfos) {
         vertex.position.setY(vertex.fluidHeight);
+    }
+
+    for (int x = 0; x < gridWidth; ++x) {
+        for (int z = 0; z < gridDepth; ++z) {
+            if( vertexIndexMap[x][z] != -1){
+                if(!vertices[vertexIndexMap[x][z]].isBorder){
+                vertices[vertexIndexMap[x][z]] =  globalGridInfos[x * gridDepth + z];
+                }
+            }
+        }
     }
 }
 
+
 void SWEFluid::Advect(std::vector<VertexData>& deplacement, const std::vector<VertexData>& source, float dt) {
-    for (size_t j = 0; j < gridDepth; ++j) {
-        for (size_t i = 0; i < gridWidth; ++i) {
+    for (size_t j = 1; j < gridDepth-1; ++j) {
+        for (size_t i = 1; i < gridWidth-1; ++i) {
             float x = i - dt * source[j * gridWidth + i].velocity.x();
             float z = j - dt * source[j * gridWidth + i].velocity.y(); // Use 'z' for the z-axis velocity
 
@@ -170,12 +257,12 @@ void SWEFluid::Update_height(float dt) {
 
     for (size_t j = 1; j < gridDepth - 1; ++j) {
         for (size_t i = 1; i < gridWidth - 1; ++i) {
-            auto& vertex = vertices[j * gridWidth + i];
+            auto& vertex = globalGridInfos[j * gridWidth + i];
 
             // Je fais valeur a gauche et a droite car meilleur résulat mais ça pourrait être valeur +1 et actuel
 
-            float dVx = (vertices[j * gridWidth + (i + 1)].velocity.x() - vertices[j * gridWidth + (i -1)].velocity.x()) / (2  /* * Dx */);
-            float dVz = (vertices[(j + 1) * gridWidth + i].velocity.y() - vertices[(j - 1) * gridWidth + i].velocity.y()) / (2 /*  * Dy */);
+            float dVx = (globalGridInfos[j * gridWidth + (i + 1)].velocity.x() - globalGridInfos[j * gridWidth + (i -1)].velocity.x()) / (2  /* * Dx */);
+            float dVz = (globalGridInfos[(j + 1) * gridWidth + i].velocity.y() - globalGridInfos[(j - 1) * gridWidth + i].velocity.y()) / (2 /*  * Dy */);
 
             div = dt * (dVx + dVz);
 
@@ -189,79 +276,51 @@ void SWEFluid::Update_velocities(float dt) {
     float xGrad;
     float zGrad;
 
-   
     for (size_t j = 0; j < gridDepth; ++j) {
         for (size_t i = 0; i < gridWidth; ++i) {
-            auto& vertex = vertices[j * gridWidth + i];
+            auto& vertex = globalGridInfos[j * gridWidth + i];
 
-            // Reflect indices at boundaries
-            int left = (i == 0) ? 1 : i - 1;
-            int right = (i == gridWidth - 1) ? gridWidth - 2 : i + 1;
-            int down = (j == 0) ? 1 : j - 1;
-            int up = (j == gridDepth - 1) ? gridDepth - 2 : j + 1;
+            size_t left = (i == 0) ? 0 : i - 1;
+            size_t right = (i == gridWidth - 1) ? i : i + 1;
+            size_t down = (j == 0) ? 0 : j - 1;
+            size_t up = (j == gridDepth - 1) ? j : j + 1;
 
-            // Calculate gradients with reflective boundaries
-            float xGrad = (vertices[j * gridWidth + right].waterHeight - vertices[j * gridWidth + left].waterHeight) / (2 /* * Dx */);
-            float zGrad = (vertices[up * gridWidth + i].waterHeight - vertices[down * gridWidth + i].waterHeight) / (2 /*  * Dy */ );
+            xGrad = (globalGridInfos[j * gridWidth + right].waterHeight - globalGridInfos[j * gridWidth + left].waterHeight) / (2 /* * Dx */);
+            zGrad = (globalGridInfos[up * gridWidth + i].waterHeight - globalGridInfos[down * gridWidth + i].waterHeight) / (2 /* * Dy */);
 
-            // Update velocities
             vertex.velocity.setX(vertex.velocity.x() + (gravity * xGrad));
             vertex.velocity.setY(vertex.velocity.y() + (gravity * zGrad));
-
-            // Reflect velocities at boundaries
-            if (i == 0 || i == gridWidth - 1) {
-                vertex.velocity.setX(-vertex.velocity.x());
-            }
-            if (j == 0 || j == gridDepth - 1) {
-                vertex.velocity.setY(-vertex.velocity.y());
-            }
         }
     }
 }
 
-void SWEFluid::updateVertexBuffer() {
-    arrayBuf.bind();
-    arrayBuf.allocate(vertices.data(), static_cast<int>(vertices.size()) * sizeof(VertexData));
-    arrayBuf.release();
-}
 
 float SWEFluid::InterpolateWaterH(const std::vector<VertexData>& source, float x, float z) {
-    // Reflect indices at boundaries
+    // Clamp indices to within the grid boundaries
     int x0 = std::max(0, std::min(static_cast<int>(floor(x)), gridWidth - 1));
     int x1 = std::max(0, std::min(x0 + 1, gridWidth - 1));
     int z0 = std::max(0, std::min(static_cast<int>(floor(z)), gridDepth - 1));
     int z1 = std::max(0, std::min(z0 + 1, gridDepth - 1));
 
-    // Reflecting over boundary
-    x0 = (x0 < 0) ? -x0 : x0;
-    x1 = (x1 >= gridWidth) ? (2 * gridWidth - x1 - 2) : x1;
-    z0 = (z0 < 0) ? -z0 : z0;
-    z1 = (z1 >= gridDepth) ? (2 * gridDepth - z1 - 2) : z1;
-
-    // Récupérer les hauteurs de l'eau aux coins
+    // Retrieve water heights at the corners
     float q00 = source[z0 * gridWidth + x0].waterHeight;
     float q10 = source[z0 * gridWidth + x1].waterHeight;
     float q01 = source[z1 * gridWidth + x0].waterHeight;
     float q11 = source[z1 * gridWidth + x1].waterHeight;
 
-    // Interpolation bilinéaire
+    // Bilinear interpolation
     float r0 = ((x1 - x) * q00) + ((x - x0) * q10);
     float r1 = ((x1 - x) * q01) + ((x - x0) * q11);
     return ((z1 - z) * r0) + ((z - z0) * r1);
 }
 
+
 QVector2D SWEFluid::InterpolateVelocity(const std::vector<VertexData>& source, float x, float z) {
-    // Reflect indices at boundaries
+    // Clamp indices to within the grid boundaries
     int x0 = std::max(0, std::min(static_cast<int>(floor(x)), gridWidth - 1));
     int x1 = std::max(0, std::min(x0 + 1, gridWidth - 1));
     int z0 = std::max(0, std::min(static_cast<int>(floor(z)), gridDepth - 1));
     int z1 = std::max(0, std::min(z0 + 1, gridDepth - 1));
-
-    // Reflecting over boundary
-    x0 = (x0 < 0) ? -x0 : x0;
-    x1 = (x1 >= gridWidth) ? (2 * gridWidth - x1 - 2) : x1;
-    z0 = (z0 < 0) ? -z0 : z0;
-    z1 = (z1 >= gridDepth) ? (2 * gridDepth - z1 - 2) : z1;
 
     QVector2D v00 = source[z0 * gridWidth + x0].velocity;
     QVector2D v10 = source[z0 * gridWidth + x1].velocity;
@@ -274,13 +333,57 @@ QVector2D SWEFluid::InterpolateVelocity(const std::vector<VertexData>& source, f
     return ((z1 - z) * r0) + ((z - z0) * r1);
 }
 
-void SWEFluid::setWaterHeightAt(int x, int z, double height) {
-    if (x >= 0 && x < gridWidth && z >= 0 && z < gridDepth) {
-        int index = z * gridWidth + x;
-        double deltaHeight = height - vertices[index].waterHeight;
 
-        vertices[index].waterHeight = height;
 
-        vertices[index].position.setY(vertices[index].groundHeight + height);
+void SWEFluid::updateVertexBuffer() {
+    arrayBuf.bind();
+    arrayBuf.allocate(vertices.data(), static_cast<int>(vertices.size()) * sizeof(VertexData));
+    arrayBuf.release();
+}
+
+float  SWEFluid::getWaterHeight(float x, float z){
+    // Clamp x and z to within the grid boundaries
+    int gridX = std::max(0, std::min(static_cast<int>(round(x)), gridWidth - 1));
+    int gridZ = std::max(0, std::min(static_cast<int>(round(z)), gridDepth - 1));
+
+    // Calculate the index in the globalGridInfos vector
+    int index = gridZ * gridWidth + gridX;
+    if(vertexIndexMap[x][z] != -1){
+
+        return globalGridInfos[index].waterHeight;
+    }
+    else{
+        return 0;
+    }
+
+}
+
+void SWEFluid::CreateInitialWave(Border border) {
+    // Define the initial wave height
+    const float initialWaveHeight = 3.0f;
+
+    // Depending on the border, initialize the wave
+    switch (border) {
+    case Border::South:
+        for (int i = 1; i < gridWidth-1; ++i) {
+            globalGridInfos[i * gridDepth + (gridDepth / 2)].waterHeight += initialWaveHeight;
+        }
+        break;
+    case Border::East:
+        for (int j = 1; j < gridDepth-1; ++j) {
+            globalGridInfos[(gridWidth / 2) * gridDepth + j].waterHeight  += initialWaveHeight;
+        }
+        break;
+    case Border::West:
+        for (int j = 1; j < gridDepth-1; ++j) {
+            globalGridInfos[(gridWidth - gridWidth / 2) * gridDepth + j].waterHeight  += initialWaveHeight;
+        }
+        break;
+    case Border::North:
+        for (int i = 1; i < gridWidth-1; ++i) {
+            globalGridInfos[i * gridDepth + (gridDepth - gridDepth / 2)].waterHeight  += initialWaveHeight;
+        }
+        break;
     }
 }
+
