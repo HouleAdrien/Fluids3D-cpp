@@ -13,5 +13,7 @@
         <file>Images/left.png</file>
         <file>Images/right.png</file>
         <file>Images/top.png</file>
+        <file>Images/waterDUDV.png</file>
+        <file>Images/normalMap.png</file>
     </qresource>
 </RCC>

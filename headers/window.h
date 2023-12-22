@@ -21,13 +21,8 @@ public:
 
 private slots:
     void uploadImage();
-    void updateImageDisplay(const QImage &image);
-    void updateImageDisplay2(const QImage &image);
 
 private:
-    QLabel *imageLabel;
-    QLabel *imageLabel2;
-
     GLWidget *glWidget;
     MainWindow *mainWindow;
     QPushButton *uploadButton;

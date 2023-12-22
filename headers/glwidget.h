@@ -33,10 +33,6 @@ public:
     void setFoV(float fov);
 
 
-signals:
-    void reflectionTextureUpdated(const QImage &image);
-    void refractionTextureUpdated(const QImage &image);
-
 public slots:
     void cleanup();
     void updateSimulation();
@@ -59,8 +55,6 @@ private:
     void resolveSphereCollisions();
     void initializeSkybox();
     void RenderScene(bool withWater,QVector4D clippingPlane);
-    void emitReflectionTexture();
-    void emitRefractionTexture();
 
     float m_currentFoV;
     bool m_core;
@@ -75,8 +69,11 @@ private:
     int m_mvp_matrix_loc;
     int m_normal_matrix_loc;
     int m_light_pos_loc;
+    int m_model_matrix_loc;
     int reflect_texture_loc;
     int refract_texture_loc;
+    int timeLocation;
+    int cameraposloc;
 
     int grid_mvp_matrix_loc;
     int grid_normal_matrix_loc;
@@ -113,6 +110,8 @@ private:
     QVector3D rayOrigin;
     QVector3D rayEnd;
     bool drawRay = false;
+
+    float time = 0;
 
 };
 

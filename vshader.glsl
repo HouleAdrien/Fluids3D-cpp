@@ -11,27 +11,31 @@ out vec3 v_position;     // Passed to the fragment shader: position of the verte
 out vec3 v_normal;       // Passed to the fragment shader: normal of the vertex after applying wave effect
 out float f_waterHeight; // Passed to the fragment shader: height of the water
 out float f_groundHeight;
-out vec2 f_texCooord;
+out vec4 clipSpace;
+out vec2 f_texCoord;
+out vec3 toCameraVector;
 
+uniform vec3 cameraPos;
 uniform mat4 mvp_matrix;     // Model-View-Projection matrix
 uniform mat3 normal_matrix;  // Normal matrix for transforming normals
+uniform mat4 model_matrix;
+const float tiling = 10.0;
 
 void main() {
-    // Pass the displaced position to the fragment shader
     v_position = vertex.xyz ;
 
-    // Compute the transformed position using the MVP matrix
-    gl_Position = mvp_matrix * vec4(v_position, 1.0);
+    vec4 worldPos= model_matrix* vec4(v_position.x,v_position.y,v_position.z,1.0);
 
-    // Calculate the new normal after applying the wave motion
-    // Here we're just passing the original normal, but you can modify this
-    // to reflect the changes in the surface due to waves
+    clipSpace= mvp_matrix * vec4(v_position, 1.0);
+
+    gl_Position = clipSpace;
+    v_position =worldPos.xyz;
     v_normal = normal_matrix * normal;
 
-    // Pass the water height to the fragment shader
     f_waterHeight = waterHeight;
 
     f_groundHeight = groundHeight;
+    f_texCoord = vec2(vertex.x/2.0 +0.5,vertex.y/2.0+0.5)*tiling;
 
-    f_texCooord = texCoord;
+    toCameraVector = cameraPos * worldPos.xyz;
 }

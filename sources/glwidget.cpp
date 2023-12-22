@@ -157,11 +157,32 @@ void GLWidget::initializeGL()
 
     m_mvp_matrix_loc = m_program->uniformLocation("mvp_matrix");
     m_normal_matrix_loc = m_program->uniformLocation("normal_matrix");
+    m_model_matrix_loc = m_program->uniformLocation("model_matrix");
     m_light_pos_loc = m_program->uniformLocation("light_position");
     reflect_texture_loc = m_program->uniformLocation("reflectionTexture");
     refract_texture_loc = m_program->uniformLocation("refractionTexture");
+    cameraposloc = m_program->uniformLocation("cameraPos");
     m_program->setUniformValue(reflect_texture_loc,0);
     m_program->setUniformValue(refract_texture_loc,1);
+
+    QImage dudvmap(":/Images/waterDUDV.png");
+    QOpenGLTexture* dudvmapTexture = new QOpenGLTexture(dudvmap);
+
+    QImage normalMap(":/Images/normalMap.png");
+    QOpenGLTexture* normalMapTexture = new QOpenGLTexture(normalMap);
+
+    auto bindTexture= [&](QOpenGLTexture* texture, GLenum textureUnit, const char* uniformName, int unitIndex) {
+        if (texture) {
+            glActiveTexture(textureUnit);
+            texture->bind();
+            m_program->setUniformValue(uniformName, unitIndex);
+        }
+    };
+    bindTexture(dudvmapTexture,GL_TEXTURE2,"dudvMap",2);
+    bindTexture(normalMapTexture,GL_TEXTURE3,"normalMap",3);
+
+    timeLocation = m_program->uniformLocation("time");
+
 
     // Set the light position to the sun's position
     m_program->setUniformValue(m_light_pos_loc, sunPosition);
@@ -341,11 +362,9 @@ void GLWidget::paintGL() {
     camera->InvertPitch();
     m_view = camera->GetViewMatrix();
 
-    emitReflectionTexture();
 
     waterFrameBuffers->bindRefractionFrameBuffer();
     RenderScene(false,{0,-1,0,static_cast<float>(swefluid->BaseWaterHeight)});
-    emitRefractionTexture();
 
     waterFrameBuffers->unbindCurrentFrameBuffer();
 
@@ -357,38 +376,6 @@ void GLWidget::paintGL() {
 }
 
 
-void GLWidget::emitReflectionTexture() {
-    QSize textureSize(waterFrameBuffers->REFLECTION_WIDTH, waterFrameBuffers->REFLECTION_HEIGHT);
-
-    // Bind the reflection framebuffer for reading
-    glBindFramebuffer(GL_READ_FRAMEBUFFER, waterFrameBuffers->getReflectionFrameBuffer());
-    glReadBuffer(GL_COLOR_ATTACHMENT0);
-
-    // Create an image with the appropriate format
-    QImage image(textureSize, QImage::Format_RGB888);
-
-    // Read pixels directly into the QImage's buffer
-    glReadPixels(0, 0, textureSize.width(), textureSize.height(), GL_RGB, GL_UNSIGNED_BYTE, image.bits());
-
-    // Unbind the framebuffer
-    glBindFramebuffer(GL_READ_FRAMEBUFFER, 0);
-
-    // Emit the signal with the image
-    emit reflectionTextureUpdated(image); // Use mirrored() if the image is flipped
-}
-
-void GLWidget::emitRefractionTexture(){
-    QSize textureSize(waterFrameBuffers->REFRACTION_WIDTH, waterFrameBuffers->REFRACTION_HEIGHT);
-    glBindFramebuffer(GL_READ_FRAMEBUFFER, waterFrameBuffers->getRefractionFrameBuffer());
-    glReadBuffer(GL_COLOR_ATTACHMENT0);
-    QImage image(textureSize, QImage::Format_RGB888);
-    glReadPixels(0, 0, textureSize.width(), textureSize.height(), GL_RGB, GL_UNSIGNED_BYTE, image.bits());
-    glBindFramebuffer(GL_READ_FRAMEBUFFER, 0);
-    emit refractionTextureUpdated(image);
-}
-
-
-
 void GLWidget::RenderScene(bool withWater,QVector4D clippingPlane){
   glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
     glEnable(GL_DEPTH_TEST);
@@ -397,10 +384,6 @@ void GLWidget::RenderScene(bool withWater,QVector4D clippingPlane){
     m_view = camera->GetViewMatrix();
 
     // Configuration de la matrice de transformation
-    m_model.setToIdentity();
-    m_model.rotate(180 / 16.0f, 1, 0, 0);
-    m_model.rotate(180 / 16.0f, 0, 1, 0);
-    m_model.rotate(0 / 16.0f, 0, 0, 1);
 
     if(withWater){
         m_program->bind();
@@ -409,13 +392,14 @@ void GLWidget::RenderScene(bool withWater,QVector4D clippingPlane){
         m_program->setUniformValue(m_mvp_matrix_loc, m_projection * m_view * m_model);
         QMatrix3x3 normal_matrix = m_model.normalMatrix();
         m_program->setUniformValue(m_normal_matrix_loc, normal_matrix);
+        m_program->setUniformValue(m_model_matrix_loc,m_model);
 
         glActiveTexture(GL_TEXTURE0);
         glBindTexture(GL_TEXTURE_2D ,waterFrameBuffers->getReflectionTexture());
 
         glActiveTexture(GL_TEXTURE1);
         glBindTexture(GL_TEXTURE_2D , waterFrameBuffers->getRefractionTexture());
-
+        m_program->setUniformValue(cameraposloc, camera->Position);
         // Dessin de la grille
         swefluid->drawGridGeometry(m_program);
 
@@ -577,16 +561,20 @@ void GLWidget::resolveSphereCollisions() {
 
 void GLWidget::updateSimulation() {
 
-    swefluid->ShallowWaterStep(0.001f);
+    swefluid->ShallowWaterStep(0.0005f);
     swefluid->updateVertexBuffer();
 
+    time+= 0.1f;
+    m_program->bind();
+    m_program->setUniformValue(timeLocation, time);
+    m_program->release();
     update(); // Request to redraw the widget
 }
 
 void GLWidget::resizeGL(int w, int h) {
     if (h == 0) h = 1; // Prévenir la division par zéro
     m_projection.setToIdentity();
-    m_projection.perspective(m_currentFoV, float(w) / float(h), 0.1f, 1000.0f);
+    m_projection.perspective(m_currentFoV, float(w) / float(h), 0.01f, 10000.0f);
 }
 
 void GLWidget::setFoV(float fov)
@@ -598,7 +586,7 @@ void GLWidget::setFoV(float fov)
 void GLWidget::updateProjectionMatrix()
 {
     m_projection.setToIdentity();
-    m_projection.perspective(m_currentFoV, float(width()) / float(height()),   0.1f, 1000.0f);
+    m_projection.perspective(m_currentFoV, float(width()) / float(height()),   0.01f, 10000.0f);
     update();
 }
 
@@ -651,15 +639,15 @@ void GLWidget::mousePressEvent(QMouseEvent *event) {
         // Intersection test for the forward ray
         QVector3D forwardHitPoint;
         if (grid->intersectsRay(rayOrigin, forwardRayDirection, rayLength, forwardHitPoint)) {
-            // Sphere* newSphere = new Sphere(grid,{ forwardHitPoint.x(), forwardHitPoint.y() + 30, forwardHitPoint.z()},0.5f,12);
-            // spheres.push_back(newSphere);
+             Sphere* newSphere = new Sphere(grid,{ forwardHitPoint.x(), forwardHitPoint.y() + 30, forwardHitPoint.z()},0.5f,12,swefluid);
+             spheres.push_back(newSphere);
         }
 
         rayOrigin = backwardRayEnd;
         QVector3D backwardHitPoint;
         if (grid->intersectsRay(rayOrigin, backwardRayDirection, rayLength, backwardHitPoint)) {
-            // Sphere* newSphere = new Sphere(grid,{ backwardHitPoint.x(), backwardHitPoint.y() + 30, backwardHitPoint.z()},0.5f,12);
-            // spheres.push_back(newSphere);
+             Sphere* newSphere = new Sphere(grid,{ backwardHitPoint.x(), backwardHitPoint.y() + 30, backwardHitPoint.z()},0.5f,12,swefluid);
+             spheres.push_back(newSphere);
         }
 
         rayEnd = forwardRayEnd;
