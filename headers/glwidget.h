@@ -31,7 +31,7 @@ public:
     QSize minimumSizeHint() const override;
     QSize sizeHint() const override;
     void setFoV(float fov);
-
+    void ChangeTerrain(int index);
 
 public slots:
     void cleanup();

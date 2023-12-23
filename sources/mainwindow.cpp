@@ -9,7 +9,7 @@
 MainWindow::MainWindow()
 {
     onAddNew();
-
+    showMaximized();
 
 }
 

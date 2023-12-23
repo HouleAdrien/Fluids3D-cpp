@@ -3,6 +3,7 @@
 
 #include <QWidget>
 #include <QLabel>
+#include <QComboBox>
 QT_BEGIN_NAMESPACE
 class QSlider;
 class QPushButton;
@@ -20,13 +21,16 @@ public:
     ~Window();
 
 private slots:
-    void uploadImage();
+    void onFirstDropdownChanged(int index);
+    void onSecondDropdownChanged(int index);
 
 private:
     GLWidget *glWidget;
     MainWindow *mainWindow;
-    QPushButton *uploadButton;
+
+    // Declare the dropdowns
+    QComboBox *dropdown1;
+    QComboBox *dropdown2;
 };
 
 #endif
-

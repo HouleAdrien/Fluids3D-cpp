@@ -25,8 +25,8 @@ vec4 CalcTexColor() {
 
     // Define thresholds as percentages of maxHeight
     float heightThreshold1 = maxHeight * 0.05;
-    float heightThreshold2 = maxHeight * 0.15;
-    float heightThreshold3 = maxHeight * 0.45;
+    float heightThreshold2 = maxHeight * 0.40;
+    float heightThreshold3 = maxHeight * 0.55;
 
     if (Height < heightThreshold1) {
         TexColor = texture2D(gTextureHeight0, Tex);

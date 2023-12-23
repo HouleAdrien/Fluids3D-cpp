@@ -1,12 +1,12 @@
 <RCC>
     <qresource prefix="/">
-        <file>Images/Untitled.jpeg</file>
+        <file>Images/river.jpeg</file>
         <file>Images/grass.jpg</file>
         <file>Images/rock.png</file>
         <file>Images/rockGrass.jpeg</file>
         <file>Images/snow.jpg</file>
-        <file>Images/test4.png</file>
-        <file>Images/test5.jpg</file>
+        <file>Images/island.png</file>
+        <file>Images/canaux.jpg</file>
         <file>Images/back.png</file>
         <file>Images/bottom.png</file>
         <file>Images/front.png</file>
@@ -15,5 +15,7 @@
         <file>Images/top.png</file>
         <file>Images/waterDUDV.png</file>
         <file>Images/normalMap.png</file>
+        <file>Images/black.jpg</file>
+        <file>Images/sand.jpg</file>
     </qresource>
 </RCC>

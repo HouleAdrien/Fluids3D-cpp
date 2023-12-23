@@ -139,12 +139,12 @@ void Sphere::UpdateParticles(float dt) {
 }
 
 void Sphere::handleBuoyancy(QVector3D& newPosition, QVector3D& velocity, QVector3D& accumulatedForce, float waterHeight, float dt) {
-    float sphereRadius = 0.5f; // Sphere radius
+
     float buoyancyCoefficient = 1.0f; // Adjust based on fluid density and sphere volume
     float waterDensity = 1000.0f; // Water density in kg/m^3
 
     // Calculate submerged volume (simplified example)
-    float submergedVolume = 0.262f; // This value is for a sphere with a radius of 0
+    float submergedVolume = 0.5f; //
     QVector3D buoyancyForce = QVector3D(0.0f, buoyancyCoefficient * submergedVolume * waterDensity * gravity, 0.0f);
 
     // Apply buoyancy force
@@ -153,7 +153,7 @@ void Sphere::handleBuoyancy(QVector3D& newPosition, QVector3D& velocity, QVector
 
     // Adjust position if below water surface
     if (newPosition.y() < waterHeight) {
-        newPosition.setY(waterHeight + sphereRadius);
+        newPosition.setY(waterHeight );
     }
 }
 

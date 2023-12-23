@@ -5,25 +5,59 @@
 #include <vector>
 
 
-GridGeometry::GridGeometry(int _gridWidth,int _gridDepth) : indexBuf(QOpenGLBuffer::IndexBuffer) {
+GridGeometry::GridGeometry(int _gridWidth,int _gridDepth,TerrainType terrainType) : indexBuf(QOpenGLBuffer::IndexBuffer) {
     initializeOpenGLFunctions();
 
     gridWidth = _gridWidth;
     gridDepth = _gridDepth;
+    switch (terrainType) {
+    case TerrainType::River:{
+        QImage image1(":/Images/river.jpeg");
 
-    QImage _image(":/Images/Untitled.jpeg");
-    
-    if(_image.isNull()){
-        qWarning() << "No image found for gradient.";
-    }else{
-        setHeightMap(_image);
+        if(image1.isNull()){
+            qWarning() << "No image found for gradient.";
+        }else{
+            setHeightMap(image1);
+        }
+        break;
+          }
+    case TerrainType::Island:{
+        QImage image2(":/Images/island.png");
+
+        if(image2.isNull()){
+            qWarning() << "No image found for gradient.";
+        }else{
+            setHeightMap(image2);
+        }
+        break;
+          }
+    case TerrainType::Canal:{
+        QImage image3(":/Images/canaux.jpg");
+
+        if(image3.isNull()){
+            qWarning() << "No image found for gradient.";
+        }else{
+            setHeightMap(image3);
+        }
+        break;
     }
+    case TerrainType::None:
+        QImage image4(":/Images/black.jpg");
+
+        if(image4.isNull()){
+            qWarning() << "No image found for gradient.";
+        }else{
+            setHeightMap(image4);
+        }
+        break;
+    }
+
 
 
     arrayBuf.create();
     indexBuf.create();
 
-    setTextureHeightMapsFromPaths(":/Images/grass.jpg", ":/Images/rockGrass.jpeg", ":/Images/rock.png", ":/Images/snow.jpg");
+    setTextureHeightMapsFromPaths(":/Images/sand.jpg", ":/Images/sand.jpg", ":/Images/rock.png", ":/Images/rock.png");
 
 
     initGridGeometry();

@@ -99,40 +99,6 @@ void SWEFluid::initGridGeometry() {
     indexBuf.allocate(indices.data(), static_cast<int>(indices.size()) * sizeof(GLushort));
 }
 
-void SWEFluid::SpreadBorderToGround() {
-    for (VertexData& vertex : vertices) {
-        if (vertex.isBorder) {
-            // Current terrain height at the vertex's position
-            float currentTerrainHeight = grid->getHeightAtPosition(vertex.position.x(), vertex.position.z());
-
-            // Check if the vertex is already at or below the terrain height
-            if (vertex.position.y() < currentTerrainHeight) {
-                // Calculate gradient in x and z directions
-                float heightX1 = grid->getHeightAtPosition(vertex.position.x() + 1, vertex.position.z());
-                float heightX2 = grid->getHeightAtPosition(vertex.position.x() - 1, vertex.position.z());
-                float gradientX = heightX1 - heightX2;
-
-                float heightZ1 = grid->getHeightAtPosition(vertex.position.x(), vertex.position.z() + 1);
-                float heightZ2 = grid->getHeightAtPosition(vertex.position.x(), vertex.position.z() - 1);
-                float gradientZ = heightZ1 - heightZ2;
-
-                // Determine the direction to move (towards increasing height)
-                QVector2D direction(gradientX, gradientZ);
-                direction.normalize();
-
-                // Move the vertex
-                float stepSize = 0.01; // Adjust this value as needed
-                vertex.position.setX(vertex.position.x() + direction.x() * stepSize);
-                vertex.position.setZ(vertex.position.z() + direction.y() * stepSize);
-
-                // Update the vertex's height to be at least the terrain height
-                vertex.position.setY(std::max(vertex.position.y(), grid->getHeightAtPosition(vertex.position.x(), vertex.position.z())));
-            }
-        }
-    }
-
-}
-
 
 void SWEFluid::drawGridGeometry(QOpenGLShaderProgram* program) {
     arrayBuf.bind();
@@ -195,7 +161,7 @@ void SWEFluid::drawGridGeometry(QOpenGLShaderProgram* program) {
 }
 
 void SWEFluid::ShallowWaterStep(float dt) {
-    SpreadBorderToGround();
+
     std::vector<VertexData> tempVertices = globalGridInfos;
 
     // Steps 1, 2, and 3: Advect for water height and velocities
@@ -227,11 +193,20 @@ void SWEFluid::ShallowWaterStep(float dt) {
         vertex.position.setY(vertex.fluidHeight);
     }
 
+
+    computeNormal();
+
     for (int x = 0; x < gridWidth; ++x) {
         for (int z = 0; z < gridDepth; ++z) {
             if( vertexIndexMap[x][z] != -1){
                 if(!vertices[vertexIndexMap[x][z]].isBorder){
                 vertices[vertexIndexMap[x][z]] =  globalGridInfos[x * gridDepth + z];
+                float groundHeight =  grid->getHeightAtPosition(x,z);
+                if(vertices[vertexIndexMap[x][z]].waterHeight <groundHeight){
+                        vertices[vertexIndexMap[x][z]].waterHeight = groundHeight;
+                        vertices[vertexIndexMap[x][z]].fluidHeight = groundHeight;
+                        vertices[vertexIndexMap[x][z]].position.setY(groundHeight+0.1f);
+                    }
                 }
             }
         }
@@ -268,11 +243,13 @@ void SWEFluid::Update_height(float dt) {
 
             // La nouvelle hauteur c'est l'ancienne hauteur moins la hauteur * le divergent
             vertex.waterHeight =vertex.waterHeight - (  vertex.waterHeight * (div));
+
         }
     }
 }
 
 void SWEFluid::Update_velocities(float dt) {
+    float dampingFactor = 0.99;
     float xGrad;
     float zGrad;
 
@@ -288,8 +265,8 @@ void SWEFluid::Update_velocities(float dt) {
             xGrad = (globalGridInfos[j * gridWidth + right].waterHeight - globalGridInfos[j * gridWidth + left].waterHeight) / (2 /* * Dx */);
             zGrad = (globalGridInfos[up * gridWidth + i].waterHeight - globalGridInfos[down * gridWidth + i].waterHeight) / (2 /* * Dy */);
 
-            vertex.velocity.setX(vertex.velocity.x() + (gravity * xGrad));
-            vertex.velocity.setY(vertex.velocity.y() + (gravity * zGrad));
+            vertex.velocity.setX((vertex.velocity.x() + (gravity * xGrad))*dampingFactor);
+            vertex.velocity.setY((vertex.velocity.y() + (gravity * zGrad))*dampingFactor);
         }
     }
 }
@@ -333,6 +310,31 @@ QVector2D SWEFluid::InterpolateVelocity(const std::vector<VertexData>& source, f
     return ((z1 - z) * r0) + ((z - z0) * r1);
 }
 
+void SWEFluid::computeNormal() {
+    for (int x = 1; x < gridWidth-1; ++x) {
+        for (int z =1; z < gridDepth-1; ++z) {
+            float heightLeft = getWaterHeight(x - 1, z);
+            float heightRight = getWaterHeight(x + 1, z);
+            float heightDown = getWaterHeight(x, z - 1);
+            float heightUp = getWaterHeight(x, z + 1);
+
+            QVector3D normal = calculateNormal(heightLeft, heightRight, heightDown, heightUp);
+
+            int index = x * gridDepth + z;
+            if (index >= 0 && index < globalGridInfos.size()) {
+                globalGridInfos[index].normal = normal;
+            }
+        }
+    }
+}
+
+QVector3D SWEFluid::calculateNormal(float heightLeft, float heightRight, float heightDown, float heightUp) {
+    QVector3D rightVector(1.0f, heightRight - heightLeft, 0.0f);
+    QVector3D upVector(0.0f, heightUp - heightDown, 1.0f);
+    QVector3D normal = QVector3D::crossProduct(upVector, rightVector).normalized();
+
+    return normal;
+}
 
 
 void SWEFluid::updateVertexBuffer() {
@@ -353,7 +355,7 @@ float  SWEFluid::getWaterHeight(float x, float z){
         return globalGridInfos[index].waterHeight;
     }
     else{
-        return 0;
+        return BaseWaterHeight;
     }
 
 }

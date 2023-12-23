@@ -212,7 +212,7 @@ void GLWidget::initializeGL()
 
     grid_program->release();
 
-    grid = new GridGeometry(200,200);
+    grid = new GridGeometry(200,200,TerrainType::River);
 
     swefluid = new SWEFluid(grid,12);
 
@@ -383,7 +383,6 @@ void GLWidget::RenderScene(bool withWater,QVector4D clippingPlane){
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
     m_view = camera->GetViewMatrix();
 
-    // Configuration de la matrice de transformation
 
     if(withWater){
         m_program->bind();
@@ -660,22 +659,25 @@ void GLWidget::mousePressEvent(QMouseEvent *event) {
 
 
 void GLWidget::mouseMoveEvent(QMouseEvent *event) {
-    QPoint currentPos = event->pos();
+    if (event->buttons() & Qt::RightButton) {
+        QPoint currentPos = event->pos();
 
-    if (!lastPos.isNull()) {
-        // Calculate the difference in position
-        float deltaX = currentPos.x() - lastPos.x();
-        float deltaY = currentPos.y() - lastPos.y();
+        if (!lastPos.isNull()) {
+             // Calculate the difference in position
+             float deltaX = currentPos.x() - lastPos.x();
+             float deltaY = currentPos.y() - lastPos.y();
 
-        const float sensitivity = 2.0f; // Adjust sensitivity as needed
+             const float sensitivity = 2.0f; // Adjust sensitivity as needed
 
-        // Update camera based on the delta movement
-        camera->ProcessMouseMovement( deltaX* sensitivity, (-deltaY) * sensitivity);
+             // Update camera based on the delta movement
+             camera->ProcessMouseMovement(deltaX * sensitivity, (-deltaY) * sensitivity);
+        }
+
+        lastPos = currentPos;
+        update();
     }
-
-    lastPos = currentPos;
-    update();
 }
+
 
 
 void GLWidget::keyPressEvent(QKeyEvent *event) {
@@ -695,6 +697,32 @@ void GLWidget::keyPressEvent(QKeyEvent *event) {
 
     update();
 
+}
 
+void GLWidget::ChangeTerrain(int index){
+    foreach (Sphere*sphere, spheres) {
+        sphere->~Sphere();
+    }
+    spheres.clear();
+    delete swefluid;
+    delete grid;
 
+    switch (index) {
+    case 0:
+        grid = new GridGeometry(200,200,TerrainType::River);
+        swefluid = new SWEFluid(grid,12);
+        break;
+    case 1:
+        grid = new GridGeometry(200,200,TerrainType::Island);
+        swefluid = new SWEFluid(grid,12);
+        break;
+    case 2:
+        grid = new GridGeometry(200,200,TerrainType::Canal);
+        swefluid = new SWEFluid(grid,12);
+        break;
+    case 3:
+        grid = new GridGeometry(200,200,TerrainType::None);
+        swefluid = new SWEFluid(grid,12);
+        break;
+    }
 }

@@ -12,10 +12,18 @@ struct GridVertexData {
     QVector2D texCoord; // Texture coordinate
 };
 
+enum class TerrainType {
+    River,
+    Island,
+    Canal,
+    None
+};
+
+
 class GridGeometry : protected QOpenGLFunctions
 {
 public:
-    GridGeometry(int _gridWidth,int _gridDepth);
+    GridGeometry(int _gridWidth,int _gridDepth,TerrainType terrainType);
     ~GridGeometry();
 
     void initGridGeometry();

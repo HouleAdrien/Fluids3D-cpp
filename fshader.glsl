@@ -12,14 +12,13 @@ uniform vec3 light_position;
 uniform sampler2D reflectionTexture;
 uniform sampler2D refractionTexture;
 uniform sampler2D dudvMap;
-uniform sampler2D normalMap;
 uniform float time;
 
 const float microwavestrength = 0.02;
 const float microwavespeed =0.03f;
 in vec3 toCameraVector;
 const float waterHeightThreshold = 13.0; // The threshold height
-const float shineDamper = 200.0;
+const float shineDamper = 20.0;
 const float reflectivity =0.6;
 
 void main() {
@@ -48,21 +47,15 @@ void main() {
     vec3 viewVector = normalize(toCameraVector);
     float refractivefactor = dot(viewVector,vec3(0.0,1.0,0.0));
     refractivefactor = pow(refractivefactor,0.35);
+    vec3 normal =v_normal;
+    normal =normalize(v_normal);
 
-    vec4 normalMapColour =texture2D(normalMap,distortedTexCoords);
-    vec3 normal = vec3(normalMapColour.r*2.0-1.0,  normalMapColour.b, normalMapColour.g*2.0-1.0);
-    normal = normalize(normal);
-
-    vec3 reflectedLight = reflect(normalize(fromLightVector), normal);
+    vec3 reflectedLight = reflect(normalize(fromLightVector),- normal);
     float specular = max(dot(reflectedLight, viewVector), 0.0);
     specular = pow(specular, shineDamper);
     vec3 specularHighlights = vec3(1.5, 1.5, 1.2) * specular * reflectivity;
 
     fragColor = mix(reflectColor,refractColor,refractivefactor);
-    fragColor = mix(fragColor,vec4(0.0,0.3,0.5,1.0),0.2)+vec4(specularHighlights,0.0);
+    fragColor = mix(fragColor,vec4(0.0,0.3,0.5,2.0),0.4)+vec4(specularHighlights,0.0);
 
-    if (f_waterHeight > waterHeightThreshold) {
-          // Mix a bit of white to simulate the appearance of waves
-          fragColor = mix(fragColor, vec4(1.0, 1.0, 1.0, 0.3), 0.1); // Adjust the 0.3 to change the intensity of the white
-      }
 }

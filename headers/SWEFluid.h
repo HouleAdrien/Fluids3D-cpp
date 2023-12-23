@@ -45,6 +45,9 @@ public:
 
     GridGeometry* grid;
 private:
+    void computeNormal();
+    QVector3D calculateNormal(float heightLeft, float heightRight, float heightDown, float heightUp);
+
     void SpreadBorderToGround();
     std::vector<std::vector<int>> vertexIndexMap;
     void Advect(std::vector<VertexData>& deplacement, const std::vector<VertexData>& source, float dt );
