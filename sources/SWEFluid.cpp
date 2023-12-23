@@ -159,6 +159,7 @@ void SWEFluid::drawGridGeometry(QOpenGLShaderProgram* program) {
     program->enableAttributeArray(isborderLocation);
     program->setAttributeBuffer(isborderLocation, GL_FLOAT, offset, 1, sizeof(VertexData));
 
+
     // Draw the geometry
     glDrawElements(GL_TRIANGLES, indexBuf.size() / sizeof(GLushort), GL_UNSIGNED_SHORT, nullptr);
 
@@ -255,7 +256,7 @@ void SWEFluid::Update_height(float dt) {
 }
 
 void SWEFluid::Update_velocities(float dt) {
-    float dampingFactor = 0.99;
+    float dampingFactor = 1;
     float xGrad;
     float zGrad;
 
@@ -354,8 +355,8 @@ void SWEFluid::updateVertexBuffer() {
 
 float  SWEFluid::getWaterHeight(float x, float z){
     // Clamp x and z to within the grid boundaries
-    int gridX = std::max(0, std::min(static_cast<int>(round(x)), gridWidth - 1));
-    int gridZ = std::max(0, std::min(static_cast<int>(round(z)), gridDepth - 1));
+    int gridX = std::max(1, std::min(static_cast<int>(round(x)), gridWidth - 1));
+    int gridZ = std::max(1, std::min(static_cast<int>(round(z)), gridDepth - 1));
 
     // Calculate the index in the globalGridInfos vector
     int index = gridZ * gridWidth + gridX;
@@ -369,32 +370,50 @@ float  SWEFluid::getWaterHeight(float x, float z){
 
 }
 
+
+QVector2D  SWEFluid::getWaterVelocity(float x, float z){
+
+    int gridX = std::max(1, std::min(static_cast<int>(round(x)), gridWidth - 1));
+    int gridZ = std::max(1, std::min(static_cast<int>(round(z)), gridDepth - 1));
+    if(vertexIndexMap[gridX][gridZ] != -1)
+    {
+        return vertices[vertexIndexMap[gridX][gridZ]].velocity;
+    }else{
+        return QVector2D();
+    }
+}
+
+
+
 void SWEFluid::CreateInitialWave(Border border) {
     // Define the initial wave height
-    const float initialWaveHeight = 3.0f;
+    const float initialWaveHeight = 5.0f;
 
     // Depending on the border, initialize the wave
     switch (border) {
     case Border::South:
-        for (int i = 1; i < gridWidth-1; ++i) {
-            globalGridInfos[i * gridDepth + (gridDepth / 2)].waterHeight += initialWaveHeight;
-        }
+        setSemiCircularWave(1, 100, 20,initialWaveHeight);
         break;
     case Border::East:
-        for (int j = 1; j < gridDepth-1; ++j) {
-            globalGridInfos[(gridWidth / 2) * gridDepth + j].waterHeight  += initialWaveHeight;
-        }
+         setSemiCircularWave(100,1, 20,initialWaveHeight);
         break;
     case Border::West:
-        for (int j = 1; j < gridDepth-1; ++j) {
-            globalGridInfos[(gridWidth - gridWidth / 2) * gridDepth + j].waterHeight  += initialWaveHeight;
-        }
+        setSemiCircularWave(100,198, 20,initialWaveHeight);
         break;
     case Border::North:
-        for (int i = 1; i < gridWidth-1; ++i) {
-            globalGridInfos[i * gridDepth + (gridDepth - gridDepth / 2)].waterHeight  += initialWaveHeight;
-        }
+        setSemiCircularWave(198, 100, 20,initialWaveHeight);
         break;
+    }
+}
+
+void SWEFluid::setSemiCircularWave(int centerX, int centerZ, double radius, double waveHeight) {
+    for (int x = 1; x < gridWidth-1; x++) {
+        for (int z = 1; z < gridDepth-1; z++) {
+            double distance = sqrt(pow(x - centerX, 2) + pow(z - centerZ, 2));
+            if (distance <= radius && z <= centerZ) {
+                setWaterHeightAt(x, z, waveHeight);
+            }
+        }
     }
 }
 
@@ -402,7 +421,6 @@ void SWEFluid::CreateInitialWave(Border border) {
 void SWEFluid::setWaterHeightAt(int x, int z, double height) {
     if (x >= 0 && x < gridWidth && z >= 0 && z < gridDepth) {
         int index = z * gridWidth + x;
-        double deltaHeight = height - globalGridInfos[index].waterHeight;
 
         globalGridInfos[index].waterHeight += height;
 

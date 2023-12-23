@@ -91,9 +91,22 @@ void Sphere::UpdateParticles(float dt) {
     float waterHeight = fluid->getWaterHeight(newPosition.x(), newPosition.z());
 
     // Check for water and ground interactions
-    if (newPosition.y() < waterHeight && waterHeight > groundHeight) {
+    if (newPosition.y() < waterHeight && waterHeight-0.5 > groundHeight) {
+        if(!onWater){
+            onWater = true;
+            velocity = {0,0,0};
+
+        }
+        QVector2D waterVelocity = fluid->getWaterVelocity(newPosition.x(), newPosition.z());
+
+        velocity = {waterVelocity.x(),0,waterVelocity.y()};
+
         handleBuoyancy(newPosition, velocity, accumulatedForce, waterHeight, dt);
     } else if (newPosition.y() < groundHeight) {
+        if(onWater){
+            onWater = false;
+            velocity *=0.1;
+        }
         handleGroundInteraction(newPosition, velocity, accumulatedForce, groundHeight, dt);
     }
 
@@ -141,7 +154,7 @@ void Sphere::UpdateParticles(float dt) {
 void Sphere::handleBuoyancy(QVector3D& newPosition, QVector3D& velocity, QVector3D& accumulatedForce, float waterHeight, float dt) {
 
     float buoyancyCoefficient = 1.0f; // Adjust based on fluid density and sphere volume
-    float waterDensity = 1000.0f; // Water density in kg/m^3
+    float waterDensity = 997.0f; // Water density in kg/m^3
 
     // Calculate submerged volume (simplified example)
     float submergedVolume = 0.5f; //
@@ -150,7 +163,7 @@ void Sphere::handleBuoyancy(QVector3D& newPosition, QVector3D& velocity, QVector
     // Apply buoyancy force
     velocity += buoyancyForce * dt;
     accumulatedForce += buoyancyForce * dt;
-
+    velocity *=0.1;
     // Adjust position if below water surface
     if (newPosition.y() < waterHeight) {
         newPosition.setY(waterHeight );

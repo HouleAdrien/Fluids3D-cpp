@@ -19,6 +19,7 @@ struct VertexData {
     float groundHeight; // Height of the ground
     float fluidHeight;  // Height of the fluid
     bool isBorder; // Is the point of fluid a border
+    float adjacentheight;
 };
 
 enum class Border {
@@ -43,11 +44,13 @@ public:
     float getWaterHeight(float x, float z);
     void CreateInitialWave(Border border);
     void setWaterHeightAt(int x, int z, double height);
-
+    void setSemiCircularWave(int centerX, int centerZ, double radius, double waveHeight) ;
     GridGeometry* grid;
+    QVector2D getWaterVelocity(float x, float z);
 private:
     void computeNormal();
     QVector3D calculateNormal(float heightLeft, float heightRight, float heightDown, float heightUp);
+    void calculateAdjacentHeight();
 
     void SpreadBorderToGround();
     std::vector<std::vector<int>> vertexIndexMap;

@@ -6,6 +6,7 @@ in float f_groundHeight;
 in vec4 clipSpace;
 in vec2 f_texCoord;
 out vec4 fragColor;
+in float f_adjacentheight;
 
 uniform vec3 light_position;
 
@@ -14,7 +15,7 @@ uniform sampler2D refractionTexture;
 uniform sampler2D dudvMap;
 uniform float time;
 
-const float microwavestrength = 0.02;
+const float microwavestrength = 0.03;
 const float microwavespeed =0.03f;
 in vec3 toCameraVector;
 
@@ -50,12 +51,21 @@ void main() {
     vec3 normal =v_normal;
     normal =normalize(v_normal);
 
+
     vec3 reflectedLight = reflect(normalize(fromLightVector), normal);
     float specular = max(dot(reflectedLight, viewVector), 0.0);
     specular = pow(specular, shineDamper);
     vec3 specularHighlights = vec3(1.5, 1.5, 1.2) * specular * reflectivity;
 
+    float heightFactor = clamp(f_waterHeight / 30.0, 0.0, 1.0);
+
+    vec3 deepWaterColor = vec3(0.0, 0.0, 0.5);
+    vec3 shallowWaterColor = vec3(0.0, 0.5, 1.0);
+
+    vec3 colorGradient = mix(deepWaterColor, shallowWaterColor, heightFactor);
+
+
     fragColor = mix(reflectColor,refractColor,refractivefactor);
-    fragColor = mix(fragColor,vec4(0.0,0.3,0.5,2.0),0.4)+vec4(specularHighlights,0.0);
+    fragColor = mix(fragColor,vec4(colorGradient,0.15),0.3)+vec4(specularHighlights,0.0);
 
 }

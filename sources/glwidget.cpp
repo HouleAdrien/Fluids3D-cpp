@@ -76,7 +76,6 @@ GLWidget::GLWidget(QWidget *parent)
     m_sunProgram(0),
     grid_program(0),
     m_sphereProgram(0),
-    rayProgram(0),
     lastPos(0, 0)
 
 {
@@ -122,13 +121,11 @@ void GLWidget::cleanup()
     delete m_skyboxProgram;
     delete m_sunProgram;
     delete m_sphereProgram;
-    delete rayProgram;
     m_sphereProgram = 0;
     m_skyboxProgram = 0;
     m_sunProgram = 0;
     m_program = 0;
     grid_program = 0;
-    rayProgram = 0;
     doneCurrent();
 }
 
@@ -254,26 +251,6 @@ void GLWidget::initializeGL()
     sunVBO.bind();
     sunVBO.allocate(sunVertices, sizeof(sunVertices));
     sunVAO.release();
-
-    rayProgram = new QOpenGLShaderProgram(this);
-
-    // Load and compile the vertex shader
-    if (!rayProgram->addShaderFromSourceFile(QOpenGLShader::Vertex, ":/ray_vshader.glsl")) {
-        qDebug() << "Error compiling vertex shader:" << rayProgram->log();
-        return;
-    }
-
-    // Load and compile the fragment shader
-    if (!rayProgram->addShaderFromSourceFile(QOpenGLShader::Fragment, ":/ray_fshader.glsl")) {
-        qDebug() << "Error compiling fragment shader:" << rayProgram->log();
-        return;
-    }
-
-    // Link the shaders
-    if (!rayProgram->link()) {
-        qDebug() << "Error linking shader program:" << rayProgram->log();
-        return;
-    }
 
     waterFrameBuffers = new WaterFrameBuffers();
     waterFrameBuffers->initialize();
@@ -458,42 +435,6 @@ void GLWidget::RenderScene(bool withWater,QVector4D clippingPlane){
     sunVAO.release();
     m_sunProgram->release();
 
-
-    if (drawRay) {
-        glLineWidth(100.0f);
-        // Set up the program for drawing the ray
-        rayProgram->bind(); // Assuming you have a separate shader program for the ray
-
-        // Set the MVP matrix for the ray
-        rayProgram->setUniformValue("mvp_matrix", m_projection * m_view * m_model);
-
-        // Define vertices for the ray line
-        GLfloat rayVertices[] = {
-            rayOrigin.x(), rayOrigin.y(), rayOrigin.z(),
-            rayEnd.x(), rayEnd.y(), rayEnd.z()
-        };
-
-        // Create a temporary VBO
-        GLuint VBO;
-        glGenBuffers(1, &VBO);
-        glBindBuffer(GL_ARRAY_BUFFER, VBO);
-        glBufferData(GL_ARRAY_BUFFER, sizeof(rayVertices), rayVertices, GL_STATIC_DRAW);
-
-        // Position attribute
-        GLint posAttrib = rayProgram->attributeLocation("position"); // Replace 'position' with your actual attribute name in shader
-        glEnableVertexAttribArray(posAttrib);
-        glVertexAttribPointer(posAttrib, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(GLfloat), (GLvoid*)0);
-
-        glDrawArrays(GL_LINES, 0, 2); // Draw the line
-
-        // Clean up
-        glBindBuffer(GL_ARRAY_BUFFER, 0);
-        glDeleteBuffers(1, &VBO);
-
-        rayProgram->release();
-        glLineWidth(1.0f);
-    }
-
     update();
 } 
 
@@ -603,59 +544,44 @@ void GLWidget::wheelEvent(QWheelEvent *event) {
 
 void GLWidget::mousePressEvent(QMouseEvent *event) {
     if (event->button() == Qt::LeftButton) {
-        // Retrieve the size of the OpenGL context
-        QSize viewportSize = this->size();
-        float screenWidth = viewportSize.width();
-        float screenHeight = viewportSize.height();
+        // Get the mouse position in normalized device coordinates (NDC)
+        QPointF mousePos = event->localPos();
+        float ndcX = (2.0 * mousePos.x()) / width() - 1.0;
+        float ndcY = 1.0 - (2.0 * mousePos.y()) / height();
 
-        // Convert the mouse click position to normalized device coordinates (NDC)
-        float x = (2.0f * event->x()) / screenWidth - 1.0f;
-        float y = 1.0f - (2.0f * event->y()) / screenHeight;
+        // Construct a ray in view space
+        QVector4D rayViewSpace(ndcX, ndcY, -1.0, 1.0);
 
-        // Convert NDC to clip coordinates
-        QVector4D rayClip = QVector4D(x, y, -1.0f, 1.0f);
+        // Get the inverse projection and view matrices
+        QMatrix4x4 projectionMatrix = m_projection;
+        QMatrix4x4 viewMatrix = camera->GetViewMatrix();
 
-        // Convert clip coordinates to eye coordinates
-        QMatrix4x4 inverseProjectionMatrix = m_projection.inverted();
-        QVector4D rayEye = inverseProjectionMatrix * rayClip;
-        rayEye = QVector4D(rayEye.x(), rayEye.y(), -1.0f, 0.0f);
+        // Calculate the inverse matrices
+        QMatrix4x4 invProjection = projectionMatrix.inverted();
+        QMatrix4x4 invView = viewMatrix.inverted();
 
-        // Convert to world coordinates
-        QMatrix4x4 inverseViewMatrix = camera->GetViewMatrix().inverted();
-        QVector3D rayWorld = inverseViewMatrix.map(rayEye.toVector3D()).normalized();
+        // Transform the ray to world space
+        QVector4D rayClipSpace = invProjection * rayViewSpace;
+        rayClipSpace = QVector4D(rayClipSpace.x(), rayClipSpace.y(), -1.0, 0.0);
+        QVector4D rayWorldSpace = invView * rayClipSpace;
+        QVector3D rayDirection(rayWorldSpace.x(), rayWorldSpace.y(), rayWorldSpace.z());
+        rayDirection.normalize();
 
-        // Calculate the ray's origin and both directions
+        // Ray origin is the camera position
         QVector3D rayOrigin = camera->Position;
-        QVector3D forwardRayDirection = rayWorld;
-        QVector3D backwardRayDirection = -rayWorld;
 
-        // Set the ray's end points for both directions
-        float rayLength = 100.0f; // Adjust the length of the ray as needed
-        QVector3D forwardRayEnd = rayOrigin + forwardRayDirection * rayLength;
-        QVector3D backwardRayEnd = rayOrigin + backwardRayDirection * rayLength;
-
-        drawRay = true;
-
-        // Intersection test for the forward ray
-        QVector3D forwardHitPoint;
-        if (grid->intersectsRay(rayOrigin, forwardRayDirection, rayLength, forwardHitPoint)) {
-             Sphere* newSphere = new Sphere(grid,{ forwardHitPoint.x(), forwardHitPoint.y() + 30, forwardHitPoint.z()},0.5f,12,swefluid);
-             spheres.push_back(newSphere);
+        // Check for intersections with the terrain
+        QVector3D intersectionPoint;
+        if (grid->intersectsRay(rayOrigin, rayDirection, 1000.0f, intersectionPoint)) {
+            // Do something with the intersection point
+          //  qDebug() << "Terrain intersection point:" << intersectionPoint;
+            Sphere* newSphere = new Sphere(grid,{ intersectionPoint.x(), intersectionPoint.y() + 30, intersectionPoint.z()},0.5f,12,swefluid);
+            spheres.push_back(newSphere);
+        }else{
+         //   qDebug() << "No interssection";
         }
-
-        rayOrigin = backwardRayEnd;
-        QVector3D backwardHitPoint;
-        if (grid->intersectsRay(rayOrigin, backwardRayDirection, rayLength, backwardHitPoint)) {
-             Sphere* newSphere = new Sphere(grid,{ backwardHitPoint.x(), backwardHitPoint.y() + 30, backwardHitPoint.z()},0.5f,12,swefluid);
-             spheres.push_back(newSphere);
-        }
-
-        rayEnd = forwardRayEnd;
     }
-
-
 }
-
 
 
 

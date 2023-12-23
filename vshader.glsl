@@ -6,6 +6,7 @@ in vec2 texCoord;
 
 in float waterHeight;    // Height of the water at the vertex, from your fluid motion computation
 in float groundHeight;
+in float adjacentheight;
 
 out vec3 v_position;     // Passed to the fragment shader: position of the vertex
 out vec3 v_normal;       // Passed to the fragment shader: normal of the vertex after applying wave effect
@@ -14,12 +15,13 @@ out float f_groundHeight;
 out vec4 clipSpace;
 out vec2 f_texCoord;
 out vec3 toCameraVector;
+out float f_adjacentheight;
 
 uniform vec3 cameraPos;
 uniform mat4 mvp_matrix;     // Model-View-Projection matrix
 uniform mat3 normal_matrix;  // Normal matrix for transforming normals
 uniform mat4 model_matrix;
-const float tiling = 1.0;
+const float tiling = 10.0;
 
 void main() {
     v_position = vertex.xyz ;
@@ -39,4 +41,5 @@ void main() {
     f_texCoord = vec2(vertex.x/2.0 +0.5,vertex.y/2.0+0.5)*tiling;
 
     toCameraVector = cameraPos * worldPos.xyz;
+    f_adjacentheight=adjacentheight;
 }

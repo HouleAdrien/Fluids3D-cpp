@@ -163,13 +163,19 @@ bool GridGeometry::intersectsRay(const QVector3D &rayOrigin, const QVector3D &ra
 
     for (float t = 0.0f; t <= rayLength; t += stepSize) {
         QVector3D pointOnRay = rayOrigin + rayDirection.normalized() * t;
-        float terrainHeight = getHeightAtPosition(pointOnRay.x(), pointOnRay.z());
+        float x = pointOnRay.x();
+        float z = pointOnRay.z();
+        if(x>0 && z> 0 && x<gridWidth && z < gridDepth)
+        {
+            float terrainHeight = getHeightAtPosition(x,z);
 
-        // Check if the ray's y-coordinate is within the tolerance range of the terrain height
-        if (std::abs(pointOnRay.y() - terrainHeight) <= tolerance) {
-            intersectionPoint = QVector3D(pointOnRay.x(), terrainHeight, pointOnRay.z());
-            return true; // Ray intersects the terrain within the tolerance range
+            // Check if the ray's y-coordinate is within the tolerance range of the terrain height
+            if (std::abs(pointOnRay.y() - terrainHeight) <= tolerance) {
+                intersectionPoint = QVector3D(pointOnRay.x(), terrainHeight, pointOnRay.z());
+                return true; // Ray intersects the terrain within the tolerance range
+            }
         }
+
     }
 
     return false; // No intersection found within the tolerance range

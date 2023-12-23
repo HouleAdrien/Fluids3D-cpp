@@ -64,7 +64,6 @@ private:
     QOpenGLShaderProgram* m_sunProgram;
     QOpenGLShaderProgram* grid_program;
     QOpenGLShaderProgram* m_sphereProgram;
-    QOpenGLShaderProgram* rayProgram;
 
     int m_mvp_matrix_loc;
     int m_normal_matrix_loc;
@@ -109,7 +108,6 @@ private:
 
     QVector3D rayOrigin;
     QVector3D rayEnd;
-    bool drawRay = false;
 
     float time = 0;
 
