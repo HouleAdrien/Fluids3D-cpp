@@ -18,7 +18,7 @@ struct VertexData {
     QVector2D velocity; // 2D velocity vector (vx, vz)
     float groundHeight; // Height of the ground
     float fluidHeight;  // Height of the fluid
-    float isBorder; // Is the point of fluid a border
+    bool isBorder; // Is the point of fluid a border
 };
 
 enum class Border {
@@ -42,6 +42,7 @@ public:
     void updateVertexBuffer();
     float getWaterHeight(float x, float z);
     void CreateInitialWave(Border border);
+    void setWaterHeightAt(int x, int z, double height);
 
     GridGeometry* grid;
 private:

@@ -9,7 +9,7 @@ class Camera {
 public:
     Camera(QVector3D position = QVector3D(0.0f, 0.0f, 0.0f),
            QVector3D up = QVector3D(0.0f, 1.0f, 0.0f),
-           QVector3D front = QVector3D(0.0f, 0.0f,-1.0f));
+           QVector3D front = QVector3D(0.0f, 0.0f,1.0f));
 
     QMatrix4x4 GetViewMatrix() const;
     QVector3D Position;

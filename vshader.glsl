@@ -19,10 +19,11 @@ uniform vec3 cameraPos;
 uniform mat4 mvp_matrix;     // Model-View-Projection matrix
 uniform mat3 normal_matrix;  // Normal matrix for transforming normals
 uniform mat4 model_matrix;
-const float tiling = 10.0;
+const float tiling = 1.0;
 
 void main() {
     v_position = vertex.xyz ;
+
 
     vec4 worldPos= model_matrix* vec4(v_position.x,v_position.y,v_position.z,1.0);
 
@@ -30,7 +31,7 @@ void main() {
 
     gl_Position = clipSpace;
     v_position =worldPos.xyz;
-    v_normal = normal_matrix * normal;
+    v_normal = normalize(normal_matrix * normal);
 
     f_waterHeight = waterHeight;
 

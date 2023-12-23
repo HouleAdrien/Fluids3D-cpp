@@ -17,13 +17,13 @@ uniform float time;
 const float microwavestrength = 0.02;
 const float microwavespeed =0.03f;
 in vec3 toCameraVector;
-const float waterHeightThreshold = 13.0; // The threshold height
+
 const float shineDamper = 20.0;
 const float reflectivity =0.6;
 
 void main() {
 
-    vec3 fromLightVector =v_position- light_position;
+    vec3 fromLightVector = normalize(light_position -v_position) ;
 
     // normalized device space
     vec2 ndc = (clipSpace.xy/clipSpace.w)/2.0+0.5;
@@ -46,11 +46,11 @@ void main() {
 
     vec3 viewVector = normalize(toCameraVector);
     float refractivefactor = dot(viewVector,vec3(0.0,1.0,0.0));
-    refractivefactor = pow(refractivefactor,0.35);
+    refractivefactor = pow(refractivefactor,0.25);
     vec3 normal =v_normal;
     normal =normalize(v_normal);
 
-    vec3 reflectedLight = reflect(normalize(fromLightVector),- normal);
+    vec3 reflectedLight = reflect(normalize(fromLightVector), normal);
     float specular = max(dot(reflectedLight, viewVector), 0.0);
     specular = pow(specular, shineDamper);
     vec3 specularHighlights = vec3(1.5, 1.5, 1.2) * specular * reflectivity;

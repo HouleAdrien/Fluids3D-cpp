@@ -277,7 +277,8 @@ void GLWidget::initializeGL()
 
     waterFrameBuffers = new WaterFrameBuffers();
     waterFrameBuffers->initialize();
-    
+    m_model.setToIdentity();
+
 }
 
 void GLWidget::initializeSkybox()
@@ -681,8 +682,36 @@ void GLWidget::mouseMoveEvent(QMouseEvent *event) {
 
 
 void GLWidget::keyPressEvent(QKeyEvent *event) {
-    if (event->key() == Qt::Key_T) {  
+    if (event->key() == Qt::Key_T) {
         swefluid->CreateInitialWave(Border::East);
+        swefluid->updateVertexBuffer();
+        //   update();
+    }
+
+    if (event->key() == Qt::Key_H) {
+        srand(1);
+
+        int numberOfCircles = 5;
+        int borderThickness = 1;
+
+        for (int i = 0; i < numberOfCircles; ++i) {
+             int centerX = rand() % 150+20;
+             int centerY = rand() % 150+20;
+             int diameter = 10;
+             int radius = diameter / 2;
+
+             for (int x = centerX - radius; x <= centerX + radius; ++x) {
+                for (int y = centerY - radius; y <= centerY + radius; ++y) {
+                    int dx = x - centerX;
+                    int dy = y - centerY;
+                    int distanceSquared = dx * dx + dy * dy;
+                    if (distanceSquared <= radius * radius && distanceSquared >= (radius - borderThickness) * (radius - borderThickness)) {
+                        swefluid->setWaterHeightAt(x, y, 15);  // Set height to 10
+                    }
+                }
+             }
+        }
+
         swefluid->updateVertexBuffer();
         //   update();
     }

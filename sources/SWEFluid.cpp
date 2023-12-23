@@ -153,6 +153,12 @@ void SWEFluid::drawGridGeometry(QOpenGLShaderProgram* program) {
     program->enableAttributeArray(fluidHeightLocation);
     program->setAttributeBuffer(fluidHeightLocation, GL_FLOAT, offset, 1, sizeof(VertexData));
 
+    offset += sizeof(bool);
+
+    int isborderLocation = program->attributeLocation("isBorder");
+    program->enableAttributeArray(isborderLocation);
+    program->setAttributeBuffer(isborderLocation, GL_FLOAT, offset, 1, sizeof(VertexData));
+
     // Draw the geometry
     glDrawElements(GL_TRIANGLES, indexBuf.size() / sizeof(GLushort), GL_UNSIGNED_SHORT, nullptr);
 
@@ -310,17 +316,20 @@ QVector2D SWEFluid::InterpolateVelocity(const std::vector<VertexData>& source, f
     return ((z1 - z) * r0) + ((z - z0) * r1);
 }
 
+
+
 void SWEFluid::computeNormal() {
     for (int x = 1; x < gridWidth-1; ++x) {
         for (int z =1; z < gridDepth-1; ++z) {
+
             float heightLeft = getWaterHeight(x - 1, z);
             float heightRight = getWaterHeight(x + 1, z);
-            float heightDown = getWaterHeight(x, z - 1);
-            float heightUp = getWaterHeight(x, z + 1);
+            float heightDown = getWaterHeight(x, z + 1);
+            float heightUp = getWaterHeight(x+1, z + 1);
 
             QVector3D normal = calculateNormal(heightLeft, heightRight, heightDown, heightUp);
 
-            int index = x * gridDepth + z;
+            int index = z * gridWidth + x;
             if (index >= 0 && index < globalGridInfos.size()) {
                 globalGridInfos[index].normal = normal;
             }
@@ -386,6 +395,18 @@ void SWEFluid::CreateInitialWave(Border border) {
             globalGridInfos[i * gridDepth + (gridDepth - gridDepth / 2)].waterHeight  += initialWaveHeight;
         }
         break;
+    }
+}
+
+
+void SWEFluid::setWaterHeightAt(int x, int z, double height) {
+    if (x >= 0 && x < gridWidth && z >= 0 && z < gridDepth) {
+        int index = z * gridWidth + x;
+        double deltaHeight = height - globalGridInfos[index].waterHeight;
+
+        globalGridInfos[index].waterHeight += height;
+
+        globalGridInfos[index].position.setY(vertices[index].groundHeight + height);
     }
 }
 
