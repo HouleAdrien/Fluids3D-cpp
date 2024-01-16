@@ -1,0 +1,1 @@
+Attention sur les ordis facs dans les paramètre projet Qt vérfié qu'il n'y a qu'une versino de qt

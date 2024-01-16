@@ -3,6 +3,7 @@
 #include <QVector3D>
 #include <QOpenGLVertexArrayObject>
 #include <vector>
+#include <math.h>
 
 SWEFluid::SWEFluid(GridGeometry* _grid,int _BaseWaterHeight) : indexBuf(QOpenGLBuffer::IndexBuffer) {
     initializeOpenGLFunctions();
