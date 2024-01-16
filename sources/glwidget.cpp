@@ -609,15 +609,15 @@ void GLWidget::mouseMoveEvent(QMouseEvent *event) {
 
 void GLWidget::keyPressEvent(QKeyEvent *event) {
     if (event->key() == Qt::Key_T) {
-        swefluid->CreateInitialWave(Border::East);
-        swefluid->updateVertexBuffer();
+       // swefluid->CreateInitialWave(Border::East);
+       // swefluid->updateVertexBuffer();
         //   update();
     }
 
     if (event->key() == Qt::Key_H) {
-        srand(1);
+        srand(time);
 
-        int numberOfCircles = 5;
+        int numberOfCircles = 3;
         int borderThickness = 1;
 
         for (int i = 0; i < numberOfCircles; ++i) {

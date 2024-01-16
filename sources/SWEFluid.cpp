@@ -387,7 +387,7 @@ QVector2D  SWEFluid::getWaterVelocity(float x, float z){
 
 void SWEFluid::CreateInitialWave(Border border) {
     // Define the initial wave height
-    const float initialWaveHeight = 5.0f;
+    const float initialWaveHeight = 15.0f;
 
     // Depending on the border, initialize the wave
     switch (border) {

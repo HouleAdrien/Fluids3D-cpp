@@ -6,7 +6,7 @@
 #include <QPushButton>
 #include <QFileDialog>
 #include <QMessageBox>
-
+#include <QSpacerItem>
 #include <QComboBox>
 #include <QLabel>
 
@@ -25,14 +25,18 @@ Window::Window(MainWindow *mw) : mainWindow(mw) {
     dropdownLayout->addWidget(label1);
     dropdownLayout->addWidget(dropdown1);
     connect(dropdown1, SIGNAL(currentIndexChanged(int)), this, SLOT(onFirstDropdownChanged(int)));
-
+/*
     // Créer le deuxième menu déroulant et label
     QLabel *label2 = new QLabel(tr("Bordure d'emission du courant continu :"));
     QComboBox *dropdown2 = new QComboBox;
     dropdown2->addItems(QStringList{"Nord", "Sud", "Est", "Ouest"});
     dropdownLayout->addWidget(label2);
     dropdownLayout->addWidget(dropdown2);
-    connect(dropdown2, SIGNAL(currentIndexChanged(int)), this, SLOT(onSecondDropdownChanged(int)));
+    connect(dropdown2, SIGNAL(currentIndexChanged(int)), this, SLOT(onSecondDropdownChanged(int)));*/
+
+
+    QSpacerItem* verticalSpacer = new QSpacerItem(20, 300, QSizePolicy::Minimum, QSizePolicy::Expanding);
+    dropdownLayout->addItem(verticalSpacer); // Ajoutez l'espaceur en bas
 
     // Ajouter glWidget et le layout vertical au layout horizontal
     container->addWidget(glWidget);
@@ -44,7 +48,6 @@ Window::Window(MainWindow *mw) : mainWindow(mw) {
 
     QVBoxLayout *mainLayout = new QVBoxLayout; // Layout général
     mainLayout->addLayout(container);
-
 
     setLayout(mainLayout);
     setWindowTitle(tr("Qt OpenGL"));
